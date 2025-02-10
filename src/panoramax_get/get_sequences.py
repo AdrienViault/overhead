@@ -1,5 +1,6 @@
 import requests
 import json
+import csv
 from collections import defaultdict
 
 # Define API endpoint and parameters
@@ -37,7 +38,8 @@ def fetch_all_sequences():
 sequences = fetch_all_sequences()
 
 # Save the JSON response to a file
-with open("panoramax_sequences.json", "w", encoding="utf-8") as json_file:
+json_filename = "data/sequences_metadata/sequences_all.json"
+with open(json_filename, "w", encoding="utf-8") as json_file:
     json.dump({"collections": sequences}, json_file, indent=4, ensure_ascii=False)
 
 print(f"Total sequences retrieved: {len(sequences)}")
@@ -50,7 +52,24 @@ for collection in sequences:
         provider_name = provider.get("name", "Unknown Provider")
         provider_stats[provider_name] += 1
 
-# Print results
-print("Provider Statistics:")
-for provider, count in provider_stats.items():
-    print(f"Provider: {provider}, Sequences: {count}")
+# Sort providers by sequence count (descending)
+sorted_providers = sorted(provider_stats.items(), key=lambda x: x[1], reverse=True)
+
+# Save provider stats to a CSV file
+providers_csv_filename = "data/sequences_metadata/provider_sequence_counts.csv"
+with open(providers_csv_filename, "w", encoding="utf-8", newline="") as file:
+    writer = csv.writer(file)
+    writer.writerow(["User", "Number of Sequences"])
+    writer.writerows(sorted_providers)
+
+print(f"Provider sequence counts saved to {providers_csv_filename}")
+
+# Save all users to another CSV for later selection
+selected_users_csv_filename = "data/sequences_metadata/selected_users.csv"
+with open(selected_users_csv_filename, "w", encoding="utf-8", newline="") as file:
+    writer = csv.writer(file)
+    writer.writerow(["User", "Download"])
+    for provider, _ in sorted_providers:
+        writer.writerow([provider, "no"])  # Default to 'no' for selection
+
+print(f"User list initialized in {selected_users_csv_filename}. Mark 'yes' to select users for download.")
