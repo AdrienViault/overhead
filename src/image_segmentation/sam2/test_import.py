@@ -32,10 +32,9 @@ elif device.type == "mps":
         "See e.g. https://github.com/pytorch/pytorch/issues/84936 for a discussion."
     )
 
-
-
 sam2_checkpoint = "//home/adrien/Documents/Dev/sam2/checkpoints/sam2.1_hiera_large.pt"
 model_cfg = "//home/adrien/Documents/Dev/sam2/sam2/configs/sam2.1/sam2.1_hiera_l.yaml" 
+image_path = "/home/adrien/Documents/Dev/overhead/data/images/test_images/reprojected/perspective_0_GSAC0346.JPG"  
 
 
 print("runnin model load")
