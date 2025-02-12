@@ -1,6 +1,10 @@
 pytest
+transformers
+matplotlib
+torch
+torchvision
 opencv-python
 numpy
 requests
-git+https://github.com/facebookresearch/sam2.git
+github.com/facebookresearch/segment-anything.git
 
