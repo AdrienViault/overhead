@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import cv2
 import os
 import numpy as np
+import time
 
 # Import SAM2 model builder and automatic mask generator
 from sam2.build_sam import build_sam2
@@ -13,13 +14,16 @@ from sam2.automatic_mask_generator import SAM2AutomaticMaskGenerator
 # =============================================================================
 sam2_checkpoint = "//home/adrien/Documents/Dev/sam2/checkpoints/sam2.1_hiera_large.pt"
 model_cfg = "//home/adrien/Documents/Dev/sam2/sam2/configs/sam2.1/sam2.1_hiera_l.yaml" 
-image_path = "/home/adrien/Documents/Dev/overhead/data/images/test_images/reprojected/perspective_0_GSAC0346.JPG"  
+image_path = "data/images/test_images/reprojected/perspective_0deg.jpg"
 
 # Output folder for segmented images
 output_folder = "/home/adrien/Documents/Dev/overhead/data/images/test_images/segmentation/"
 os.makedirs(output_folder, exist_ok=True)
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
+
+print("Empty GPU cache")
+torch.cuda.empty_cache()
 
 # =============================================================================
 # Build the SAM2 model (postprocessing disabled for clarity)
@@ -68,15 +72,15 @@ image = preprocess_image(image_path)
 # Base parameters for the mask generator
 # =============================================================================
 base_params = {
-    'points_per_side': 64,
-    'points_per_batch': 128,
-    'pred_iou_thresh': 0.7,
-    'stability_score_thresh': 0.92,
-    'stability_score_offset': 0.7,
-    'crop_n_layers': 1,
+    'points_per_side': 16,
+    'points_per_batch': 16,
+    'pred_iou_thresh': 0.9,
+    'stability_score_thresh': 0.95,
+    'stability_score_offset': 1.0,
+    'crop_n_layers': 0,
     'box_nms_thresh': 0.7,
-    'crop_n_points_downscale_factor': 2,
-    'min_mask_region_area': 5.0,
+    'crop_n_points_downscale_factor': 1,
+    'min_mask_region_area': 0,
     'use_m2m': True,
 }
 
@@ -89,23 +93,23 @@ param_variations = {
          'comment': 'Grid points per image side. Lower values yield coarser sampling; higher values provide denser proposals.'
     },
     'points_per_batch': {
-         'values': [64, 128, 256],
+         'values': [16, 32, 64],
          'comment': 'Number of points processed per batch.'
     },
     'pred_iou_thresh': {
-         'values': [0.5, 0.7, 0.9],
+         'values': [0.85, 0.9, 0.95],
          'comment': 'Threshold for predicted IoU to filter masks.'
     },
     'stability_score_thresh': {
-         'values': [0.8, 0.92, 0.98],
+         'values': [0.88, 0.95, 0.98],
          'comment': 'Minimum stability score required for a mask to be kept.'
     },
     'stability_score_offset': {
-         'values': [0.5, 0.7, 0.9],
+         'values': [0.5, 1.0, 1.5],
          'comment': 'Offset applied to the stability score during evaluation.'
     },
     'crop_n_layers': {
-         'values': [1, 2, 3],
+         'values': [0, 1, 2],
          'comment': 'Number of cropping layers used to capture multi-scale details.'
     },
     'box_nms_thresh': {
@@ -117,7 +121,7 @@ param_variations = {
          'comment': 'Factor to downscale the number of crop points, trading off detail for speed.'
     },
     'min_mask_region_area': {
-         'values': [5.0, 10.0, 20.0],
+         'values': [0, 10, 50, 100],
          'comment': 'Minimum pixel area for a mask region to be considered valid.'
     },
     'use_m2m': {
@@ -135,11 +139,15 @@ for param_name, param_info in param_variations.items():
     values = param_info['values']
     masks_results[param_name] = {}
     for value in values:
+        print(f"Studying parameter: {param_name} = {value}")
+        start_time = time.time()  # Record the start time
         params = base_params.copy()
         params[param_name] = value
         mask_generator = SAM2AutomaticMaskGenerator(model=sam2, **params)
         masks = mask_generator.generate(image)
         masks_results[param_name][value] = masks
+        elapsed = time.time() - start_time  # Compute elapsed time
+        print(f"Time to run {param_name} = {value}: {elapsed:.2f} seconds")
 
 # =============================================================================
 # PART 1: Save one figure per parameter showing all its variation values.

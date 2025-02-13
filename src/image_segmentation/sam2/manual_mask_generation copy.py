@@ -11,6 +11,7 @@ sam2_checkpoint = "//home/adrien/Documents/Dev/sam2/checkpoints/sam2.1_hiera_lar
 model_cfg = "//home/adrien/Documents/Dev/sam2/sam2/configs/sam2.1/sam2.1_hiera_l.yaml" 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
+torch.cuda.empty_cache() if torch.cuda.is_available() else ""
 
 # Build the SAM2 model
 sam2 = build_sam2(model_cfg, sam2_checkpoint, device=device, apply_postprocessing=False)
@@ -18,15 +19,15 @@ sam2 = build_sam2(model_cfg, sam2_checkpoint, device=device, apply_postprocessin
 # Initialize the automatic mask generator
 mask_generator_2 = SAM2AutomaticMaskGenerator(
     model=sam2,
-    # points_per_side=64,
-    # points_per_batch=128,
-    # pred_iou_thresh=0.7,
-    # stability_score_thresh=0.92,
-    # stability_score_offset=0.7,
-    # crop_n_layers=1,
+    # points_per_side=32,
+    # points_per_batch=64,
+    pred_iou_thresh=0.9,
+    # stability_score_thresh=0.95,
+    # stability_score_offset=1.0,
+    # crop_n_layers=0,
     # box_nms_thresh=0.7,
-    # crop_n_points_downscale_factor=2,
-    #min_mask_region_area=5.0,
+    # crop_n_points_downscale_factor=1,
+    #min_mask_region_area=0,
     # use_m2m=True,
 )
 

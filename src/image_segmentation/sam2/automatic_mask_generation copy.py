@@ -52,7 +52,7 @@ def preprocess_image(image_path):
 
 
 # Example usage
-image_path = "/home/adrien/Documents/Dev/overhead/data/images/test_images/reprojected/perspective_0_GSAC0346.JPG"  
+image_path = "data/images/test_images/reprojected/perspective_0deg.jpg"  
 image = preprocess_image(image_path)
 
 # Generate masks
