@@ -1,92 +1,150 @@
 import numpy as np
 import cv2
 
-def equirectangular_to_perspective(e_img, fov=90, theta=0, phi=0, out_hw=(600, 800)):
+def equirectangular_to_perspective(equi_img, out_width, out_height, fov_deg, theta_deg, phi_deg):
     """
-    Convert an equirectangular (360°) image into a perspective (rectilinear) view.
-
-    The function computes a mapping for each pixel in the output image by:
-      - Creating a grid of normalized direction vectors.
-      - Rotating those vectors based on the desired view (given by theta and phi).
-      - Converting the rotated vectors into spherical coordinates.
-      - Mapping these spherical coordinates to pixel coordinates in the input image.
-      - Remapping using cv2.remap.
-      - Flipping vertically to correct for a bottom-up orientation.
-
-    Args:
-        e_img (np.ndarray): Input equirectangular image.
-        fov (float, optional): Horizontal field of view (in degrees) for the perspective view.
-                               Defaults to 90.
-        theta (float, optional): Yaw angle (in degrees) – rotates the view horizontally.
-                                 Defaults to 0.
-        phi (float, optional): Pitch angle (in degrees) – rotates the view vertically.
-                               Defaults to 0.
-        out_hw (tuple, optional): Output image dimensions as (height, width). Defaults to (600, 800).
-
+    Re-project an equirectangular image into a perspective view.
+    
+    Parameters:
+      equi_img : The input equirectangular image (assumed to cover 360° x 180°).
+      out_width: Output perspective image width in pixels.
+      out_height: Output perspective image height in pixels.
+      fov_deg  : The horizontal field-of-view (in degrees) of the perspective view.
+      theta_deg: Yaw angle (rotation about the vertical axis) in degrees.
+      phi_deg  : Pitch angle (rotation about the horizontal axis) in degrees.
+      
     Returns:
-        np.ndarray: The generated perspective view image.
+      A perspective-projected image (as a NumPy array).
     """
-    h_out, w_out = out_hw
-    h_equi, w_equi, _ = e_img.shape
-
-    # Convert field of view to radians and compute focal length.
-    fov_rad = np.deg2rad(fov)
-    f = (w_out / 2.0) / np.tan(fov_rad / 2.0)
-
+    # Convert degrees to radians.
+    fov = np.deg2rad(fov_deg)
+    theta = np.deg2rad(theta_deg)
+    phi = np.deg2rad(phi_deg)
+    
+    # Compute the focal length from the horizontal FOV.
+    # Using the pinhole camera model: f = (out_width/2) / tan(fov/2)
+    f = (out_width / 2.0) / np.tan(fov / 2.0)
+    
+    # Define the center of the output image.
+    center_x = out_width / 2.0
+    center_y = out_height / 2.0
+    
     # Create a grid of pixel coordinates in the output image.
-    x, y = np.meshgrid(np.arange(w_out), np.arange(h_out))
-    x_c = (w_out - 1) / 2.0
-    y_c = (h_out - 1) / 2.0
+    # i: vertical coordinate (0 at top to out_height-1 at bottom)
+    # j: horizontal coordinate (0 at left to out_width-1 at right)
+    j, i = np.meshgrid(np.arange(out_width), np.arange(out_height))
+    
+    # Convert pixel coordinates to camera plane coordinates.
+    # The x coordinate is computed as (j - center_x) / f.
+    # The y coordinate is computed as (center_y - i) / f so that “up” in the scene 
+    # corresponds to the top of the image.
+    x = (j - center_x) / f
+    y = (center_y - i) / f
+    z = np.ones_like(x)
+    
+    # Stack into direction vectors (each pixel now has a 3D direction).
+    dirs = np.stack((x, y, z), axis=2)  # shape: (out_height, out_width, 3)
+    
+    # (Optional) Normalize the direction vectors so that each has unit length.
+    norm = np.linalg.norm(dirs, axis=2, keepdims=True)
+    dirs_norm = dirs / norm
 
-    # Normalize coordinates relative to the focal length.
-    x_norm = (x - x_c) / f
-    y_norm = (y - y_c) / f
-    z = np.ones_like(x_norm)
-
-    # Stack to create 3D direction vectors.
-    dirs = np.stack((x_norm, y_norm, z), axis=-1)  # shape: (h_out, w_out, 3)
-    dirs = dirs / np.linalg.norm(dirs, axis=2, keepdims=True)
-
-    # Convert the center angles to radians.
-    theta_rad = np.deg2rad(theta)
-    phi_rad = np.deg2rad(phi)
-
-    # Build rotation matrices.
-    # Yaw rotation (around the y-axis)
+    # --- Build the rotation matrix ---
+    # Yaw (theta) rotates about the y-axis.
     R_yaw = np.array([
-        [ np.cos(theta_rad), 0, np.sin(theta_rad)],
-        [ 0, 1, 0],
-        [-np.sin(theta_rad), 0, np.cos(theta_rad)]
+        [ np.cos(theta), 0, np.sin(theta)],
+        [ 0,             1, 0            ],
+        [-np.sin(theta), 0, np.cos(theta)]
     ])
-    # Pitch rotation (around the x-axis)
+    # Pitch (phi) rotates about the x-axis.
     R_pitch = np.array([
-        [1, 0, 0],
-        [0, np.cos(phi_rad), -np.sin(phi_rad)],
-        [0, np.sin(phi_rad),  np.cos(phi_rad)]
+        [1, 0,           0          ],
+        [0, np.cos(phi), -np.sin(phi)],
+        [0, np.sin(phi),  np.cos(phi)]
     ])
-    # Combined rotation (no roll is applied)
+    # Combined rotation: first apply yaw, then pitch.
     R = R_pitch @ R_yaw
 
-    # Apply the rotation to each direction vector.
-    dirs_rot = dirs.reshape(-1, 3) @ R.T
-    dirs_rot = dirs_rot.reshape(h_out, w_out, 3)
-
-    # Convert rotated vectors to spherical coordinates.
-    x_r = dirs_rot[..., 0]
-    y_r = dirs_rot[..., 1]
-    z_r = dirs_rot[..., 2]
-    lon = np.arctan2(x_r, z_r)  # range: [-pi, pi]
-    lat = np.arcsin(y_r)        # range: [-pi/2, pi/2]
-
-    # Map spherical coordinates to equirectangular pixel coordinates.
-    u = (lon + np.pi) / (2 * np.pi) * w_equi
-    v = (np.pi/2 - lat) / np.pi * h_equi
-
-    # Create maps for remapping.
+    # Rotate every direction vector.
+    # Reshape the (H x W x 3) array into a list of 3D vectors, apply R,
+    # and then reshape back to (H x W x 3).
+    dirs_rot = dirs_norm.reshape((-1, 3)) @ R.T
+    dirs_rot = dirs_rot.reshape((out_height, out_width, 3))
+    
+    # --- Convert the rotated directions to spherical coordinates ---
+    # Spherical coordinates:
+    #   - Longitude (lon) is computed from the x and z components.
+    #   - Latitude (lat) is computed from the y component.
+    dx = dirs_rot[:, :, 0]
+    dy = dirs_rot[:, :, 1]
+    dz = dirs_rot[:, :, 2]
+    lon = np.arctan2(dx, dz)
+    lat = np.arcsin(dy)
+    
+    # --- Map the spherical coordinates to pixel coordinates in the equirectangular image ---
+    equi_h, equi_w = equi_img.shape[:2]
+    # The horizontal coordinate (u) is proportional to (lon + π) over a 2π range.
+    u = (lon + np.pi) / (2 * np.pi) * equi_w
+    # The vertical coordinate (v) is proportional to (π/2 - lat) over a π range.
+    v = (np.pi/2 - lat) / np.pi * equi_h
+    
+    # cv2.remap requires map_x and map_y to be of type float32.
     map_x = u.astype(np.float32)
     map_y = v.astype(np.float32)
-    persp = cv2.remap(e_img, map_x, map_y, cv2.INTER_LINEAR, borderMode=cv2.BORDER_WRAP)
+    
+    # Remap the pixels from the equirectangular image to produce the perspective view.
+    perspective = cv2.remap(equi_img, map_x, map_y,
+                            interpolation=cv2.INTER_LINEAR,
+                            borderMode=cv2.BORDER_CONSTANT,
+                            borderValue=(0, 0, 0))
+    return perspective
 
-    # Flip vertically so that the image orientation is correct.
-    persp = cv2.flip(persp, 0)
-    return persp
+def main():
+    # -------------------------
+    # 1. Load the equirectangular image.
+    # -------------------------
+    equi_img = cv2.imread("data/images/test_images/GSAC0346.JPG")
+    if equi_img is None:
+        print("Error: Could not load the equirectangular image!")
+        return
+
+    # -------------------------
+    # 2. Set parameters for the perspective views.
+    # -------------------------
+    out_width = 1920                  # Width of each perspective image in pixels.
+    horizontal_fov_deg = 90          # Horizontal FOV for each perspective image.
+    vertical_fov_deg = 120            # Vertical FOV (ignoring the very top and bottom).
+    
+    # Compute the focal length from the horizontal FOV.
+    # f = (out_width/2) / tan(horizontal_fov/2)
+    f = (out_width / 2.0) / np.tan(np.deg2rad(horizontal_fov_deg / 2.0))
+    
+    # Compute the output height from the desired vertical FOV.
+    # out_height = 2 * f * tan(vertical_fov/2)
+    out_height = int(2 * f * np.tan(np.deg2rad(vertical_fov_deg / 2.0)))
+    print("Output perspective image dimensions: {}x{}".format(out_width, out_height))
+    
+    # -------------------------
+    # 3. Define the yaw angles to cover 360° horizontally.
+    # -------------------------
+    # For a horizontal FOV of 90°, four images at yaw angles 0°, 90°, 180°, and 270°
+    # will cover the full 360°.
+    yaw_angles = [0, 45, 90, 135, 180, 225, 270]
+    pitch_deg = -5  # No vertical tilt (centered on the horizon). Adjust if desired.
+    
+    # -------------------------
+    # 4. Loop over each yaw angle and generate the perspective image.
+    # -------------------------
+    for yaw in yaw_angles:
+        persp_img = equirectangular_to_perspective(equi_img,
+                                                    out_width, out_height,
+                                                    horizontal_fov_deg,
+                                                    theta_deg=yaw,
+                                                    phi_deg=pitch_deg)
+        # Save the perspective image with a filename indicating the yaw.
+        filename = "data/images/test_images/reprojected/perspective_{}deg.jpg".format(yaw)
+        cv2.imwrite(filename, persp_img)
+        print("Saved perspective image for yaw {}° as '{}'".format(yaw, filename))
+
+if __name__ == "__main__":
+    main()
