@@ -4,6 +4,7 @@ import cv2
 from sam2.build_sam import build_sam2
 from sam2.automatic_mask_generator import SAM2AutomaticMaskGenerator
 import numpy as np
+import os
 
 # Define the paths to the checkpoint and configuration file
 
@@ -52,7 +53,7 @@ def preprocess_image(image_path):
 
 
 # Example usage
-image_path = "data/images/test_images/reprojected/perspective_0deg.jpg"  
+image_path = "data/images/test_images/reprojected/perspective_-80.0deg.jpg"  
 image = preprocess_image(image_path)
 
 # Generate masks
@@ -68,3 +69,11 @@ plt.imshow(image)
 show_anns(masks)
 plt.axis('off')
 plt.show() 
+
+
+# Save the figure for this parameter group
+output_folder = "/home/adrien/Documents/Dev/overhead/data/images/test_images/segmentation/"
+output_filename = f"segmentation_autom.png"
+output_path = os.path.join(output_folder, output_filename)
+plt.savefig(output_path, bbox_inches='tight', pad_inches=0.1, dpi=150)
+print(f"Saved: {output_path}")

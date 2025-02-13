@@ -12,8 +12,8 @@ from sam2.automatic_mask_generator import SAM2AutomaticMaskGenerator
 # =============================================================================
 # Set paths
 # =============================================================================
-sam2_checkpoint = "//home/adrien/Documents/Dev/sam2/checkpoints/sam2.1_hiera_large.pt"
-model_cfg = "//home/adrien/Documents/Dev/sam2/sam2/configs/sam2.1/sam2.1_hiera_l.yaml" 
+sam2_checkpoint = "//home/adrien/Documents/Dev/sam2/checkpoints/sam2.1_hiera_tiny.pt"
+model_cfg = "//home/adrien/Documents/Dev/sam2/sam2/configs/sam2.1/sam2.1_hiera_t.yaml" 
 image_path = "data/images/test_images/reprojected/perspective_0deg.jpg"
 
 # Output folder for segmented images
@@ -173,7 +173,7 @@ for param_name, param_info in param_variations.items():
     plt.tight_layout()
     
     # Save the figure for this parameter group
-    output_filename = f"segmentation_{param_name}_variations.png"
+    output_filename = f"t_segmentation_{param_name}_variations.png"
     output_path = os.path.join(output_folder, output_filename)
     plt.savefig(output_path, bbox_inches='tight', pad_inches=0.1, dpi=150)
     print(f"Saved: {output_path}")

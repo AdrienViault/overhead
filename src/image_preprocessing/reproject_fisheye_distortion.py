@@ -62,8 +62,8 @@ def equirectangular_to_perspective(equi_img, out_width, out_height, fov_deg, the
         [0, np.cos(phi), -np.sin(phi)],
         [0, np.sin(phi),  np.cos(phi)]
     ])
-    # Combined rotation: first apply yaw, then pitch.
-    R = R_pitch @ R_yaw
+    # Combined rotation: first apply pitch then yaw
+    R =  R_yaw @ R_pitch
 
     # Rotate every direction vector.
     # Reshape the (H x W x 3) array into a list of 3D vectors, apply R,
@@ -111,8 +111,8 @@ def main():
     # -------------------------
     # 2. Set parameters for the perspective views.
     # -------------------------
-    out_width = 1920                  # Width of each perspective image in pixels.
-    horizontal_fov_deg = 90          # Horizontal FOV for each perspective image.
+    out_width = 700                  # Width of each perspective image in pixels.
+    horizontal_fov_deg = 110          # Horizontal FOV for each perspective image.
     vertical_fov_deg = 120            # Vertical FOV (ignoring the very top and bottom).
     
     # Compute the focal length from the horizontal FOV.
@@ -124,13 +124,16 @@ def main():
     out_height = int(2 * f * np.tan(np.deg2rad(vertical_fov_deg / 2.0)))
     print("Output perspective image dimensions: {}x{}".format(out_width, out_height))
     
+    angle_away_from_full_front = 25
+    positive_yaw = angle_away_from_full_front + horizontal_fov_deg/2
+
     # -------------------------
     # 3. Define the yaw angles to cover 360° horizontally.
     # -------------------------
     # For a horizontal FOV of 90°, four images at yaw angles 0°, 90°, 180°, and 270°
     # will cover the full 360°.
-    yaw_angles = [0, 45, 90, 135, 180, 225, 270]
-    pitch_deg = -5  # No vertical tilt (centered on the horizon). Adjust if desired.
+    yaw_angles = [-positive_yaw, +positive_yaw]
+    pitch_deg = -20  # slight vertical tilt (centered over the horizon). Adjust if desired.
     
     # -------------------------
     # 4. Loop over each yaw angle and generate the perspective image.

@@ -19,14 +19,14 @@ sam2 = build_sam2(model_cfg, sam2_checkpoint, device=device, apply_postprocessin
 # Initialize the automatic mask generator
 mask_generator_2 = SAM2AutomaticMaskGenerator(
     model=sam2,
-    # points_per_side=32,
+    points_per_side=8,
     # points_per_batch=64,
     pred_iou_thresh=0.9,
     # stability_score_thresh=0.95,
     # stability_score_offset=1.0,
-    # crop_n_layers=0,
+    crop_n_layers=0,
     # box_nms_thresh=0.7,
-    # crop_n_points_downscale_factor=1,
+    crop_n_points_downscale_factor=2,
     #min_mask_region_area=0,
     # use_m2m=True,
 )
@@ -65,7 +65,7 @@ def preprocess_image(image_path):
 
 
 # Example usage
-image_path = "/home/adrien/Documents/Dev/overhead/data/images/test_images/reprojected/perspective_0_GSAC0346.JPG"  
+image_path = "data/images/test_images/reprojected/perspective_70.0deg.jpg"  
 image = preprocess_image(image_path)
 
 # Generate masks
