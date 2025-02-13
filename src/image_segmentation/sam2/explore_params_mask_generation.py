@@ -177,5 +177,4 @@ for param_name, param_info in param_variations.items():
     output_path = os.path.join(output_folder, output_filename)
     plt.savefig(output_path, bbox_inches='tight', pad_inches=0.1, dpi=150)
     print(f"Saved: {output_path}")
-    plt.show()
     plt.close(fig)
