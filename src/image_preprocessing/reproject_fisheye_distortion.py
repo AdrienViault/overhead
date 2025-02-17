@@ -1,5 +1,7 @@
 import numpy as np
 import cv2
+import argparse
+
 
 def equirectangular_to_perspective(equi_img, out_width, out_height, fov_deg, theta_deg, phi_deg):
     """
@@ -99,7 +101,7 @@ def equirectangular_to_perspective(equi_img, out_width, out_height, fov_deg, the
                             borderValue=(0, 0, 0))
     return perspective
 
-def main():
+def main_equirectangular_to_perspective():
     # -------------------------
     # 1. Load the equirectangular image.
     # -------------------------
@@ -149,5 +151,75 @@ def main():
         cv2.imwrite(filename, persp_img)
         print("Saved perspective image for yaw {}° as '{}'".format(yaw, filename))
 
-if __name__ == "__main__":
-    main()
+def cylindrical_projection(equi_img, vertical_fov_deg=120):
+    """
+    Convert an equirectangular image (360x180) to a cylindrical projection image with the specified vertical field-of-view.
+    The output image will span 360° horizontally and vertical_fov_deg vertically.
+    
+    This version flips the vertical mapping so that the output is oriented correctly.
+    
+    Parameters:
+        equi_img (numpy.ndarray): Input equirectangular image.
+        vertical_fov_deg (float): Desired vertical field-of-view in degrees (default is 120).
+
+    Returns:
+        numpy.ndarray: The cylindrical projection image.
+    """
+    h, w, _ = equi_img.shape
+
+    # The full equirectangular image covers 180° vertically.
+    # Thus, output height is scaled proportionally:
+    out_height = int(h * (vertical_fov_deg / 180))
+    out_width = w  # full 360° horizontal
+
+    # Prepare mapping arrays for cv2.remap.
+    map_x = np.zeros((out_height, out_width), dtype=np.float32)
+    map_y = np.zeros((out_height, out_width), dtype=np.float32)
+
+    # Convert vertical FOV to radians.
+    half_fov_rad = np.deg2rad(vertical_fov_deg / 2)
+
+    # For each output pixel, calculate the corresponding spherical coordinates.
+    # In the equirectangular image:
+    #   - u (x coordinate) corresponds to longitude: phi in [-π, π]
+    #   - v (y coordinate) corresponds to latitude: theta in [π/2, -π/2]
+    #
+    # For the cylindrical output:
+    #   - x spans phi from -π to π.
+    #   - y is computed so that the center of the output (y = out_height/2) corresponds to theta = 0.
+    #     The mapping has been inverted so the top of the image represents positive theta.
+    for y in range(out_height):
+        # Invert the y coordinate to get the correct vertical orientation.
+        theta = ((out_height/2 - y) / (out_height/2)) * half_fov_rad
+        for x in range(out_width):
+            # Compute phi from x coordinate: from -π to π.
+            phi = (x / out_width) * 2 * np.pi - np.pi
+
+            # Map spherical coordinates back to equirectangular coordinates.
+            # u coordinate: (phi + π) / (2π) * image width.
+            # v coordinate: (π/2 - theta) / π * image height.
+            u = (phi + np.pi) / (2 * np.pi) * w
+            v = (np.pi/2 - theta) / np.pi * h
+
+            map_x[y, x] = u
+            map_y[y, x] = v
+
+    # Use cv2.remap to interpolate the pixels from the source image.
+    # BORDER_WRAP ensures horizontal continuity.
+    cylindrical_img = cv2.remap(equi_img, map_x, map_y, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_WRAP)
+    return cylindrical_img
+
+if __name__ == '__main__':
+
+    image_path = "data/images/test_images/GSAC0346.JPG"
+    # Load the input image.
+    img = cv2.imread(image_path , cv2.IMREAD_COLOR)
+    vertical_angle_deg = 140
+
+    # Generate the cylindrical projection.
+    cyl_img = cylindrical_projection(img, vertical_fov_deg=vertical_angle_deg)
+
+    # Save the resulting image.
+    output_path = "data/images/test_images/reprojected/test.jpg"
+    cv2.imwrite(output_path, cyl_img)
+    print("Cylindrical image saved to", output_path)

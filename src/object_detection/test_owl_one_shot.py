@@ -22,3 +22,4 @@ source_image = Image.open(requests.get(source_url, stream=True).raw)
 fig, ax = plt.subplots(1,2)
 ax[0].imshow(target_image)
 ax[1].imshow(source_image)
+
