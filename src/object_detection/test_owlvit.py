@@ -17,15 +17,15 @@ text_labels = [[
     "a photo of a street lamp", 
     "a photo of an overhead line",
     "a photo of a safety cone",
-    #"a photo of an overhead distribution line",
-    #"a photo of an utility pole",
+    "a photo of an overhead distribution line",
+    "a photo of an utility pole",
     "a photo of a Single-phase low-voltage pole",
     "a photo of a Three-phase low-voltage pole with neutral",
     "a photo of a Three-phase low-voltage pole without neutral",
     "a photo of a Three-phase medium-voltage pole",
     "a photo of a Three-phase medium-voltage pole with ground wire",
     "a photo of a Three-phase high-voltage transmission tower",
-    #"a photo of a Combined utility pole (power + telecom)",
+    "a photo of a Combined utility pole (power + telecom)",
     "a photo of a Pole-Mounted Transformers",
     "a photo of a Switchgear",
     "a photo of an underground Distribution Box",
@@ -38,7 +38,6 @@ text_labels = [[
     "a photo of a surge arrester",
     "a photo of a grounding system",
     "a photo of a switchgear",
-
     ]]
 
 # Prepare inputs and perform inference
