@@ -113,7 +113,7 @@ def main_equirectangular_to_perspective():
     # -------------------------
     # 2. Set parameters for the perspective views.
     # -------------------------
-    out_width = 700                  # Width of each perspective image in pixels.
+    out_width = 1080                  # Width of each perspective image in pixels.
     horizontal_fov_deg = 90          # Horizontal FOV for each perspective image.
     vertical_fov_deg = 120            # Vertical FOV (ignoring the very top and bottom).
     
@@ -126,15 +126,15 @@ def main_equirectangular_to_perspective():
     out_height = int(2 * f * np.tan(np.deg2rad(vertical_fov_deg / 2.0)))
     print("Output perspective image dimensions: {}x{}".format(out_width, out_height))
     
-    angle_away_from_full_front = 25
-    positive_yaw = angle_away_from_full_front + horizontal_fov_deg/2
-
+    # angle_away_from_full_front = 25
+    # positive_yaw = angle_away_from_full_front + horizontal_fov_deg/2
+    centering_side_yaw = 90
     # -------------------------
     # 3. Define the yaw angles to cover 360° horizontally.
     # -------------------------
     # For a horizontal FOV of 90°, four images at yaw angles 0°, 90°, 180°, and 270°
     # will cover the full 360°.
-    yaw_angles = [-positive_yaw, +positive_yaw]
+    yaw_angles = [-centering_side_yaw, +centering_side_yaw]
     pitch_deg = -10  # slight vertical tilt (centered over the horizon). Adjust if desired.
     
     # -------------------------
@@ -208,9 +208,7 @@ def cylindrical_projection(equi_img, vertical_fov_deg=120):
     # BORDER_WRAP ensures horizontal continuity.
     cylindrical_img = cv2.remap(equi_img, map_x, map_y, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_WRAP)
     return cylindrical_img
-
-if __name__ == '__main__':
-
+def main_cylindrical_projection():
     image_path = "data/images/test_images/GSAC0346.JPG"
     # Load the input image.
     img = cv2.imread(image_path , cv2.IMREAD_COLOR)
@@ -223,3 +221,6 @@ if __name__ == '__main__':
     output_path = "data/images/test_images/reprojected/test.jpg"
     cv2.imwrite(output_path, cyl_img)
     print("Cylindrical image saved to", output_path)
+
+if __name__ == '__main__':
+    main_equirectangular_to_perspective()

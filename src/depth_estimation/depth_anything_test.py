@@ -6,7 +6,7 @@ import requests
 import matplotlib.pyplot as plt
 
 # Load image from URL and ensure it's in RGB
-image_path = "data/images/test_images/reprojected/perspective_-70.0deg.jpg"  # Replace with your image path
+image_path = "data/images/test_images/reprojected/perspective_-90deg.jpg"  # Replace with your image path
 image = Image.open(image_path).convert("RGB")
 
 # Initialize device to GPU if available
@@ -44,25 +44,16 @@ print(f"Raw depth value at center pixel ({center_x}, {center_y}): {raw_depth_val
 # Squeeze to remove extra dimensions and move to CPU for further processing
 depth_map = prediction.squeeze().cpu().numpy()
 
-# Normalize depth map to 0-255 for visualization
-depth_min = depth_map.min()
-depth_max = depth_map.max()
-depth_map_norm = (depth_map - depth_min) / (depth_max - depth_min + 1e-8)  # add epsilon to avoid division by zero
-depth_map_norm = (depth_map_norm * 255).astype(np.uint8)
-
 # Create a color-mapped visualization using matplotlib
 plt.figure(figsize=(8, 6))
 plt.imshow(depth_map, cmap='plasma')
 plt.axis('off')
 plt.title('Depth Estimation')
 
-# Mark the center pixel on the visualization
-plt.scatter(center_x, center_y, c='cyan', s=50, marker='o')
-plt.text(center_x + 5, center_y, f"{raw_depth_value:.2f}", color='white', fontsize=12, bbox=dict(facecolor='black', alpha=0.5))
-
 plt.show()
 
 # Save the depth map as an output image
-depth_image = Image.fromarray(depth_map_norm)
+depth_image = Image.fromarray(depth_map)
 depth_image.save("depth_estimation_output.png")
 print("Depth image saved as depth_estimation_output.png")
+print("Values seem to be 3 times too big")
