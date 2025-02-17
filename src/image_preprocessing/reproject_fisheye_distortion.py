@@ -112,7 +112,7 @@ def main():
     # 2. Set parameters for the perspective views.
     # -------------------------
     out_width = 700                  # Width of each perspective image in pixels.
-    horizontal_fov_deg = 110          # Horizontal FOV for each perspective image.
+    horizontal_fov_deg = 90          # Horizontal FOV for each perspective image.
     vertical_fov_deg = 120            # Vertical FOV (ignoring the very top and bottom).
     
     # Compute the focal length from the horizontal FOV.
@@ -133,7 +133,7 @@ def main():
     # For a horizontal FOV of 90°, four images at yaw angles 0°, 90°, 180°, and 270°
     # will cover the full 360°.
     yaw_angles = [-positive_yaw, +positive_yaw]
-    pitch_deg = -20  # slight vertical tilt (centered over the horizon). Adjust if desired.
+    pitch_deg = -10  # slight vertical tilt (centered over the horizon). Adjust if desired.
     
     # -------------------------
     # 4. Loop over each yaw angle and generate the perspective image.
