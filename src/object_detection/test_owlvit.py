@@ -9,7 +9,7 @@ processor = OwlViTProcessor.from_pretrained("google/owlvit-base-patch32")
 model = OwlViTForObjectDetection.from_pretrained("google/owlvit-base-patch32")
 
 # Load your image (ensure it's in RGB format)
-image_path = "data/images/test_images/reprojected/perspective_-70.0deg.jpg"
+image_path = "data/images/test_images/reprojected/perspective_70.0deg.jpg"
 image = Image.open(image_path).convert("RGB")
 
 # Define text labels to search for
@@ -17,8 +17,15 @@ text_labels = [[
     "a photo of a street lamp", 
     "a photo of an overhead line",
     "a photo of a safety cone",
-    "a photo of an overhead distribution line",
-    "a photo of an utility pole",
+    #"a photo of an overhead distribution line",
+    #"a photo of an utility pole",
+    "a photo of a Single-phase low-voltage pole",
+    "a photo of a Three-phase low-voltage pole with neutral",
+    "a photo of a Three-phase low-voltage pole without neutral",
+    "a photo of a Three-phase medium-voltage pole",
+    "a photo of a Three-phase medium-voltage pole with ground wire",
+    "a photo of a Three-phase high-voltage transmission tower",
+    #"a photo of a Combined utility pole (power + telecom)",
     "a photo of a Pole-Mounted Transformers",
     "a photo of a Switchgear",
     "a photo of an underground Distribution Box",
@@ -31,6 +38,7 @@ text_labels = [[
     "a photo of a surge arrester",
     "a photo of a grounding system",
     "a photo of a switchgear",
+
     ]]
 
 # Prepare inputs and perform inference
