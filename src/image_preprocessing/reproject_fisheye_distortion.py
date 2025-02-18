@@ -231,7 +231,7 @@ def main_equirectangular_to_perspective_for_depth():
     # -------------------------
     out_width = 1080                  # Width of each perspective image in pixels.
     horizontal_fov_deg = 45          # Horizontal FOV for each perspective image.
-    vertical_fov_deg = 90            # Vertical FOV (ignoring the very top and bottom).
+    vertical_fov_deg = 45            # Vertical FOV (ignoring the very top and bottom).
     keep_top_crop_factor =1.0
 
     persp_images = project_equirectangular_left_right(

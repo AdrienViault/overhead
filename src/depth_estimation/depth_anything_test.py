@@ -6,7 +6,9 @@ import requests
 import matplotlib.pyplot as plt
 
 # Load image from URL and ensure it's in RGB
+image_path = "data/images/test_images/reprojected/GSAC0346_perspective_4depth_right.jpg"  # Replace with your image path
 image_path = "data/images/test_images/reprojected/GSAC0346_perspective_right.jpg"  # Replace with your image path
+
 image = Image.open(image_path).convert("RGB")
 
 # Initialize device to GPU if available
@@ -56,4 +58,4 @@ plt.show()
 depth_image = Image.fromarray(depth_map)
 depth_image.save("depth_estimation_output.png")
 print("Depth image saved as depth_estimation_output.png")
-print("Values seem to be 3 times too big")
+print("Values seem to be 3.25 times too big")
