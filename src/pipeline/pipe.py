@@ -5,6 +5,50 @@ import time
 from pathlib import Path
 import cv2
 from src.image_preprocessing.reproject_fisheye_distortion import project_equirectangular_left_right
+from src.object_detection.object_detection import detect_objects
+import torch
+from transformers import OwlViTProcessor, OwlViTForObjectDetection
+from PIL import Image
+
+
+
+def load_detection_model():
+    # Load processor and model (assume the model is then moved to GPU)
+    processor = OwlViTProcessor.from_pretrained("google/owlvit-base-patch32")
+    model = OwlViTForObjectDetection.from_pretrained("google/owlvit-base-patch32")
+
+    # Print GPU memory info before model loading
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+        props = torch.cuda.get_device_properties(device)
+        total_memory = props.total_memory / (1024 ** 2)  # in MB
+        print(f"Total GPU memory: {total_memory:.0f} MB")
+    else:
+        print("CUDA is not available.")
+        device = torch.device("cpu")
+
+    # Time the model transfer to GPU
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
+        start_model = time.time()
+        model.to("cuda")  # Move the model to GPU
+        torch.cuda.synchronize()
+        model_transfer_time = time.time() - start_model
+        print(f"Object detection model loaded to GPU in {model_transfer_time:.3f} seconds.")
+    else:
+        model.to("cpu")
+
+    # Print GPU memory info after model loading
+    if torch.cuda.is_available():
+        allocated = torch.cuda.memory_allocated(device) / (1024 ** 2)  # in MB
+        reserved = torch.cuda.memory_reserved(device) / (1024 ** 2)    # in MB
+        print(f"GPU memory allocated by PyTorch after loading model: {allocated:.0f} MB")
+        print(f"GPU memory reserved by PyTorch: {reserved:.0f} MB")
+        print("Note: GPU VRAM is used for storing the model parameters, intermediate activations during inference, "
+              "and also the input data (like your image batch). Maximum occupancy will include all these factors.")
+        print("Ensure there is enough free memory for additional tasks (like depth estimation) to run concurrently.")
+    return model, processor
+
 # Import your image processing libraries (e.g., Pillow, OpenCV)
 # from PIL import Image
 
@@ -50,14 +94,55 @@ def projection(
         print(f"Saved perspective image for {pic_suffix} side as {filename}")
     pass
 
-def detect_objects(image_path, detection_model):
+def detect_objects(
+        image_path, 
+        detection_model, 
+        detection_processor
+        ):
     """
     Apply your object detection algorithm on the image using the provided detection model.
     Return a list of detected objects with their positions.
     """
-    # Example: objects = detection_model.detect(image_path)
-    # return objects
-    pass
+
+    threshold = 0.1
+
+    # Load an image (ensure it's in RGB format)
+    image = Image.open(image_path).convert("RGB")
+
+    # Define text labels to search for
+    text_labels = [[
+        "a photo of a street lamp", 
+        "a photo of an overhead utility power distribution line",
+        "a photo of a n overhead tram power line",
+        "a photo of a safety cone",
+        "a photo of a Single-phase low-voltage pole",
+        "a photo of a Three-phase low-voltage pole with neutral",
+        "a photo of a Three-phase low-voltage pole without neutral",
+        "a photo of a Three-phase medium-voltage pole",
+        "a photo of a Three-phase medium-voltage pole with ground wire",
+        "a photo of a Three-phase high-voltage transmission tower",
+        "a photo of a Combined utility pole (power + telecom)",
+        "a photo of a Pole-Mounted Transformers",
+        "a photo of a switchgear",
+        "a photo of an underground Distribution Box",
+        "a photo of a Remote Terminal Units",
+        "a photo of a transformer",
+        "a photo of a substation",
+        "a photo of a secondary substation",
+        "a photo of a busbar",
+        "a photo of a surge arrester",
+        "a photo of a grounding system",
+        ]]
+
+    # Call the detection function
+    boxes, scores, detected_labels = detect_objects(
+        detection_model, 
+        detection_processor, 
+        image, 
+        text_labels, 
+        threshold=threshold,
+    )
+    return boxes, scores, detected_labels
 
 def crop_object(image_path, obj):
     """

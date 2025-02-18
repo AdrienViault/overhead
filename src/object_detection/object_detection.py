@@ -149,10 +149,9 @@ if __name__ == "__main__":
     # Define text labels to search for
     text_labels = [[
         "a photo of a street lamp", 
-        "a photo of an overhead line",
+        "a photo of an overhead utility power distribution line",
+        "a photo of a n overhead tram power line",
         "a photo of a safety cone",
-        "a photo of an overhead distribution line",
-        "a photo of an utility pole",
         "a photo of a Single-phase low-voltage pole",
         "a photo of a Three-phase low-voltage pole with neutral",
         "a photo of a Three-phase low-voltage pole without neutral",
@@ -161,18 +160,16 @@ if __name__ == "__main__":
         "a photo of a Three-phase high-voltage transmission tower",
         "a photo of a Combined utility pole (power + telecom)",
         "a photo of a Pole-Mounted Transformers",
-        "a photo of a Switchgear",
+        "a photo of a switchgear",
         "a photo of an underground Distribution Box",
         "a photo of a Remote Terminal Units",
         "a photo of a transformer",
         "a photo of a substation",
         "a photo of a secondary substation",
         "a photo of a busbar",
-        "a photo of a transformer",
         "a photo of a surge arrester",
         "a photo of a grounding system",
-        "a photo of a switchgear",
-    ]]
+        ]]
 
     # Call the detection function
     boxes, scores, detected_labels = detect_objects(
