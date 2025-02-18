@@ -213,7 +213,7 @@ def main_equirectangular_to_perspective():
         print(f"Saved perspective image for {pic_name} side as {filename}")
 
 
-def main_equirectangular_to_perspective_square():
+def main_equirectangular_to_perspective_for_depth():
     # -------------------------
     # 1. Load the equirectangular image.
     # -------------------------
@@ -230,7 +230,7 @@ def main_equirectangular_to_perspective_square():
     # 2. Set parameters for the perspective views.
     # -------------------------
     out_width = 1080                  # Width of each perspective image in pixels.
-    horizontal_fov_deg = 90          # Horizontal FOV for each perspective image.
+    horizontal_fov_deg = 45          # Horizontal FOV for each perspective image.
     vertical_fov_deg = 90            # Vertical FOV (ignoring the very top and bottom).
     keep_top_crop_factor =1.0
 
@@ -241,7 +241,7 @@ def main_equirectangular_to_perspective_square():
         vertical_fov_deg,
         keep_top_crop_factor
         )
-    pic_suffixes = ['levelsquare_left', 'levelsquare_right']
+    pic_suffixes = ['4depth_left', '4depth_right']
     pic_names = []
     for pic_suffix in pic_suffixes:
         pic_names.append(f"{equi_img_name}_perspective_{pic_suffix}.jpg")
@@ -327,4 +327,4 @@ def main_cylindrical_projection():
 
 if __name__ == '__main__':
     main_equirectangular_to_perspective()
-    main_equirectangular_to_perspective_square()
+    main_equirectangular_to_perspective_for_depth()

@@ -6,7 +6,7 @@ import requests
 import matplotlib.pyplot as plt
 
 # Load image from URL and ensure it's in RGB
-image_path = "data/images/test_images/reprojected/perspective_-90deg.jpg"  # Replace with your image path
+image_path = "data/images/test_images/reprojected/GSAC0346_perspective_right.jpg"  # Replace with your image path
 image = Image.open(image_path).convert("RGB")
 
 # Initialize device to GPU if available
