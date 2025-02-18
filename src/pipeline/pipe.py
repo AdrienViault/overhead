@@ -6,6 +6,7 @@ from pathlib import Path
 import cv2
 from src.image_preprocessing.reproject_fisheye_distortion import project_equirectangular_left_right
 from src.object_detection.object_detection import detect_objects
+from src.image_metadata_extraction.metadata_extraction import get_gps_info
 import torch
 from transformers import OwlViTProcessor, OwlViTForObjectDetection
 from PIL import Image
@@ -177,13 +178,7 @@ def estimate_depth(cropped_img):
     # return depth
     pass
 
-def extract_metadata(image_path):
-    """
-    Extract metadata such as the observer's position and direction from the image.
-    """
-    # metadata = ...
-    # return metadata
-    pass
+
 
 def save_metadata(processed_dir, image_stem, obj, angle, depth, metadata):
     """
@@ -232,8 +227,11 @@ def process_image(
     processed_dir = os.path.join(output_base, "Grenoble", user, sequence, batch)
     os.makedirs(processed_dir, exist_ok=True)
     image_dir, image_name, image_ext = decompose_image_path(image_path)
-    # --- Projection step ---
+   
+   
+    source_gps_metadata = get_gps_info(image_path)
 
+    # --- Projection step ---
     projections = projection(
         equi_img_path = image_path,
         out_width = 1080,
@@ -255,7 +253,6 @@ def process_image(
     
     print(f"Saved perspective images for {image_path} side as {left_proj_img_file_name} and {right_proj_img_file_name} in {processed_dir}")
 
-    source_metadata = extract_metadata(image_path)
     for side, proj_img_name, proj_img_path in zip(
         ['left', 'right'],
         [left_proj_img_file_name, right_proj_img_file_name],
