@@ -9,8 +9,27 @@ from src.object_detection.object_detection import detect_objects
 import torch
 from transformers import OwlViTProcessor, OwlViTForObjectDetection
 from PIL import Image
+import json
 
 
+def decompose_image_path(image_path):
+    """
+    Decomposes the given image path into its directory, base name (without extension),
+    and file extension.
+
+    Args:
+        image_path (str): The full path to the image.
+
+    Returns:
+        tuple: A tuple containing:
+            - image_dir (str): The directory containing the image.
+            - image_name (str): The name of the image file without its extension.
+            - image_ext (str): The image file's extension (e.g., '.jpg').
+    """
+    image_dir = os.path.dirname(image_path)
+    base_name = os.path.basename(image_path)
+    image_name, image_ext = os.path.splitext(base_name)
+    return image_dir, image_name, image_ext
 
 def load_detection_model():
     # Load processor and model (assume the model is then moved to GPU)
@@ -52,16 +71,14 @@ def load_detection_model():
 # Import your image processing libraries (e.g., Pillow, OpenCV)
 # from PIL import Image
 
+
 # Placeholder functions – replace these with your actual implementations or module imports.
 def projection(
-        equi_img_dir_path="data/images/test_images/",
-        equi_img_name= 'GSAC0346',
-        equi_img_extension= '.JPG',
-        out_width = 1080,
-        horizontal_fov_deg = 90,
-        vertical_fov_deg = 140,
-        keep_top_crop_factor = 2/3,
-        out_dir_path = "data/images/test_images/reprojected/",
+        equi_img_path,
+        out_width ,
+        horizontal_fov_deg ,
+        vertical_fov_deg ,
+        keep_top_crop_factor ,
 ):
     """
     Given an equirectangular image from a GoPro Max Sphere,
@@ -70,7 +87,7 @@ def projection(
     # -------------------------
     # 1. Load the equirectangular image.
     # -------------------------
-    equi_img = cv2.imread(equi_img_dir_path+equi_img_name+equi_img_extension)
+    equi_img = cv2.imread(equi_img_path)
 
     if equi_img is None:
         print("Error: Could not load the equirectangular image!")
@@ -83,16 +100,8 @@ def projection(
         vertical_fov_deg,
         keep_top_crop_factor
         )
-    pic_suffixes = ['left', 'right']
-    proj_img_file_names = []
-    for pic_suffix in pic_suffixes:
-        proj_img_file_names.append(f"{equi_img_name}_perspective_{pic_suffix}.jpg")
 
-    for persp_image, pic_name, pic_suffix in zip(persp_images, proj_img_file_names, pic_suffixes):    
-        filename = out_dir_path + pic_name
-        cv2.imwrite(filename, persp_image)
-        print(f"Saved perspective image for {pic_suffix} side as {filename}")
-    pass
+    return persp_images
 
 def detect_objects(
         image_path, 
@@ -186,7 +195,11 @@ def save_metadata(processed_dir, image_stem, obj, angle, depth, metadata):
     #     json.dump({...}, f)
     pass
 
-def process_image(image_path, output_base, detection_model):
+def process_image(
+        image_path, 
+        output_base, 
+        detection_model
+        ):
     """
     Process a single image:
     - Parse the directory structure to determine the user, sequence, and batch.
@@ -218,29 +231,52 @@ def process_image(image_path, output_base, detection_model):
     # Build the corresponding processed directory:
     processed_dir = os.path.join(output_base, "Grenoble", user, sequence, batch)
     os.makedirs(processed_dir, exist_ok=True)
-
+    image_dir, image_name, image_ext = decompose_image_path(image_path)
     # --- Projection step ---
-    projections = projection(image_path)
+
+    projections = projection(
+        equi_img_path = image_path,
+        out_width = 1080,
+        horizontal_fov_deg = 90,
+        vertical_fov_deg = 140,
+        keep_top_crop_factor = 2 / 3,
+    )
     if projections is None:
         print(f"Projection failed for {image_path}")
         return
     left_img, right_img = projections
 
-    left_path = os.path.join(processed_dir, path_obj.stem + "_left.jpg")
-    right_path = os.path.join(processed_dir, path_obj.stem + "_right.jpg")
-    # Example: left_img.save(left_path) and right_img.save(right_path)
-    # Uncomment above lines after integrating your image library
+    left_proj_img_file_name = f"{image_name}_perspective_left.jpg"
+    right_proj_img_file_name= f"{image_name}_perspective_right.jpg"
+    left_img_path = os.path.join(processed_dir,left_proj_img_file_name)
+    right_img_path = os.path.join(processed_dir,right_proj_img_file_name)
+    cv2.imwrite(left_img_path, left_img)
+    cv2.imwrite(right_img_path, right_img)
+    
+    print(f"Saved perspective images for {image_path} side as {left_proj_img_file_name} and {right_proj_img_file_name} in {processed_dir}")
 
-    # --- Object detection and processing ---
-    objects = detect_objects(image_path, detection_model)
-    metadata = extract_metadata(image_path)
-    for idx, obj in enumerate(objects or []):
-        cropped_img = crop_object(image_path, obj)
-        angle = calculate_angle(obj, image_path)
-        depth = estimate_depth(cropped_img)
-        obj_path = os.path.join(processed_dir, f"{path_obj.stem}_obj{idx}.jpg")
-        # Example: cropped_img.save(obj_path)
-        save_metadata(processed_dir, path_obj.stem, obj, angle, depth, metadata)
+    source_metadata = extract_metadata(image_path)
+    for side, proj_img_name, proj_img_path in zip(
+        ['left', 'right'],
+        [left_proj_img_file_name, right_proj_img_file_name],
+        [left_img_path, right_img_path]
+        ):
+        # --- Object detection and processing ---
+        objects = detect_objects(proj_img_path, detection_model)
+        
+        for idx, obj in enumerate(objects or []):
+            cropped_img = crop_object(image_path, obj)
+            relative_angle = calculate_angle(obj, image_path)
+            depth = estimate_depth(cropped_img)
+            obj_path = os.path.join(processed_dir, f"{path_obj.stem}_obj{idx}.jpg")
+            # Example: cropped_img.save(obj_path)
+            save_metadata(
+                processed_dir, 
+                path_obj.stem, 
+                obj, 
+                relative_angle, 
+                depth
+                )
 
 def main():
     parser = argparse.ArgumentParser(description="Process GoPro Max Sphere images through the pipeline.")
@@ -259,14 +295,15 @@ def main():
     parser.add_argument(
         "--test",
         action="store_true",
+        type=bool,
+        default=True, # to delete when we end edition lol if you read me i forgor
         help="Run in test mode: process only 10 random images from the dataset."
     )
     args = parser.parse_args()
 
     # Initialize heavy models once outside the loop.
     # For instance, load your object detection model (assuming a function load_detection_model exists)
-    # detection_model = load_detection_model()
-    detection_model = None  # Replace with your model loading code
+    detection_model, detection_processor = load_detection_model()
 
     # Recursively search for image files (assuming JPG/JPEG)
     image_files = []
@@ -284,11 +321,8 @@ def main():
 
     # Process each image in the list, timing each iteration.
     for image_path in image_files:
-        start_time = time.time()
         print(f"Processing image: {image_path}")
         process_image(image_path, args.output, detection_model)
-        iteration_time = time.time() - start_time
-        print(f"Processed {image_path} in {iteration_time:.2f} seconds.")
 
 if __name__ == "__main__":
     main()
