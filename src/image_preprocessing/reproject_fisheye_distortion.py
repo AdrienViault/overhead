@@ -126,7 +126,8 @@ def project_equirectangular_left_right(
         equi_img, 
         out_width, 
         horizontal_fov_deg,
-        vertical_fov_deg
+        vertical_fov_deg,
+        keep_top_crop_factor=1.0
         ):
     
     # Compute the focal length from the horizontal FOV.
@@ -135,7 +136,6 @@ def project_equirectangular_left_right(
     
     # Compute the output height from the desired vertical FOV.
     # out_height = 2 * f * tan(vertical_fov/2)
-    keep_top_crop_factor = 2/3
 
     out_height = int(2 * f * np.tan(np.deg2rad(vertical_fov_deg / 2.0)))
     print("Output perspective image dimensions: {}x{}".format(out_width, out_height))
@@ -172,6 +172,7 @@ def project_equirectangular_left_right(
         persp_images.append(persp_img_cropped)
     return persp_images
 
+
 def main_equirectangular_to_perspective():
     # -------------------------
     # 1. Load the equirectangular image.
@@ -191,12 +192,14 @@ def main_equirectangular_to_perspective():
     out_width = 1080                  # Width of each perspective image in pixels.
     horizontal_fov_deg = 90          # Horizontal FOV for each perspective image.
     vertical_fov_deg = 140            # Vertical FOV (ignoring the very top and bottom).
-    
+    keep_top_crop_factor =1.0
+
     persp_images = project_equirectangular_left_right(
         equi_img, 
         out_width, 
         horizontal_fov_deg,
-        vertical_fov_deg
+        vertical_fov_deg,
+        keep_top_crop_factor
         )
     pic_suffixes = ['left', 'right']
     pic_names = []
@@ -208,6 +211,10 @@ def main_equirectangular_to_perspective():
         filename = out_dir_path + pic_name
         cv2.imwrite(filename, persp_image)
         print(f"Saved perspective image for {pic_name} side as {filename}")
+
+
+
+
 
 def cylindrical_projection(equi_img, vertical_fov_deg=120):
     """
