@@ -3,19 +3,51 @@ import random
 import argparse
 import time
 from pathlib import Path
+import cv2
+from src.image_preprocessing.reproject_fisheye_distortion import project_equirectangular_left_right
 # Import your image processing libraries (e.g., Pillow, OpenCV)
 # from PIL import Image
 
 # Placeholder functions – replace these with your actual implementations or module imports.
-def projection(image_path):
+def projection(
+        equi_img_dir_path="data/images/test_images/",
+        equi_img_name= 'GSAC0346',
+        equi_img_extension= '.JPG',
+        out_width = 1080,
+        horizontal_fov_deg = 90,
+        vertical_fov_deg = 140,
+        keep_top_crop_factor = 2/3,
+        out_dir_path = "data/images/test_images/reprojected/",
+):
     """
     Given an equirectangular image from a GoPro Max Sphere,
     return the left and right projected images.
     """
-    # For example:
-    # left_img = ...
-    # right_img = ...
-    # return left_img, right_img
+    # -------------------------
+    # 1. Load the equirectangular image.
+    # -------------------------
+    equi_img = cv2.imread(equi_img_dir_path+equi_img_name+equi_img_extension)
+
+    if equi_img is None:
+        print("Error: Could not load the equirectangular image!")
+        return
+    
+    persp_images = project_equirectangular_left_right(
+        equi_img, 
+        out_width, 
+        horizontal_fov_deg,
+        vertical_fov_deg,
+        keep_top_crop_factor
+        )
+    pic_suffixes = ['left', 'right']
+    proj_img_file_names = []
+    for pic_suffix in pic_suffixes:
+        proj_img_file_names.append(f"{equi_img_name}_perspective_{pic_suffix}.jpg")
+
+    for persp_image, pic_name, pic_suffix in zip(persp_images, proj_img_file_names, pic_suffixes):    
+        filename = out_dir_path + pic_name
+        cv2.imwrite(filename, persp_image)
+        print(f"Saved perspective image for {pic_suffix} side as {filename}")
     pass
 
 def detect_objects(image_path, detection_model):
