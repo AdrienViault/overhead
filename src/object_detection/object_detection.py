@@ -3,6 +3,8 @@ import torch
 from PIL import Image
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+import numpy as np
+
 
 def visualize_detections(image, boxes, scores, labels):
     """

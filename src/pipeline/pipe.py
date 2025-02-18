@@ -104,7 +104,7 @@ def projection(
 
     return persp_images
 
-def detect_objects(
+def detect_elec_objects(
         image_path, 
         detection_model, 
         detection_processor
@@ -230,6 +230,10 @@ def process_image(
    
    
     source_gps_metadata = get_gps_info(image_path)
+    image_relative_metadata = init_image_metadata(
+        image_path,
+        source_gps_metadata
+        )
 
     # --- Projection step ---
     projections = projection(
@@ -259,21 +263,37 @@ def process_image(
         [left_img_path, right_img_path]
         ):
         # --- Object detection and processing ---
-        objects = detect_objects(proj_img_path, detection_model)
+        boxes, scores, detected_labels  = detect_elec_objects(
+            proj_img_path, 
+            detection_model
+            )
         
-        for idx, obj in enumerate(objects or []):
+        for idx, box, score, detected_label in zip(
+            range(boxes),
+            boxes,
+            scores,
+            detected_labels
+        ):
             cropped_img = crop_object(image_path, obj)
             relative_angle = calculate_angle(obj, image_path)
             depth = estimate_depth(cropped_img)
+            depth_value = get_pixel_depth(depth, box)
             obj_path = os.path.join(processed_dir, f"{path_obj.stem}_obj{idx}.jpg")
             # Example: cropped_img.save(obj_path)
-            save_metadata(
+            update_metadata(
+                image_relative_metadata,
                 processed_dir, 
-                path_obj.stem, 
-                obj, 
+                detected_label,
+                idx,
+                box,
                 relative_angle, 
-                depth
+                depth_value
                 )
+    save_metadata(
+        image_name, #without extension
+        image_relative_metadata,
+        processed_dir,
+        )
 
 def main():
     parser = argparse.ArgumentParser(description="Process GoPro Max Sphere images through the pipeline.")
