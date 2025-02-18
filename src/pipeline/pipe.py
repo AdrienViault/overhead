@@ -178,6 +178,42 @@ def estimate_depth(cropped_img):
     # return depth
     pass
 
+def empirical_depth_correction(predicted_depth):
+    return predicted_depth/3.25
+
+
+def get_pixel_depth(depth, box):
+    """
+    for a depth map depth, and a box box, get middle pixel of the box and return depth value
+    TODO for later : improve this method to make sure the depth correspounds to the detected object
+    maybe center pixel is not in the object ?
+    """
+    #use empirical_depth_correction
+    pass
+
+def init_image_metadata(        
+        image_path,
+        source_gps_metadata
+        ):
+    #create dictionary with source image information
+    pass
+
+def update_metadata(
+        image_relative_metadata,
+        processed_dir, 
+        detected_label,
+        score,
+        idx,
+        box,
+        relative_angle, 
+        depth_value,
+        obj_path
+    ):
+    """
+    add to image_relative_metadata objects a new one with the info given in input
+
+    """
+    pass
 
 
 def save_metadata(processed_dir, image_stem, obj, angle, depth, metadata):
@@ -274,20 +310,22 @@ def process_image(
             scores,
             detected_labels
         ):
-            cropped_img = crop_object(image_path, obj)
-            relative_angle = calculate_angle(obj, image_path)
-            depth = estimate_depth(cropped_img)
-            depth_value = get_pixel_depth(depth, box)
+            cropped_img = crop_object(image_path, box)
+            relative_angle = calculate_angle(image_path, box)
+            depth_map = estimate_depth(cropped_img)
+            depth_value = get_pixel_depth(depth_map, box)
             obj_path = os.path.join(processed_dir, f"{path_obj.stem}_obj{idx}.jpg")
             # Example: cropped_img.save(obj_path)
             update_metadata(
                 image_relative_metadata,
                 processed_dir, 
                 detected_label,
+                score,
                 idx,
                 box,
                 relative_angle, 
-                depth_value
+                depth_value,
+                obj_path
                 )
     save_metadata(
         image_name, #without extension

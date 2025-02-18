@@ -181,6 +181,8 @@ if __name__ == "__main__":
         text_labels, 
         threshold=threshold,
     )
+    print(f"boxes : {boxes}")
+    print(boxes[0])
     
     if visualize_detections_bool:
         visualize_detections(image, boxes, scores, detected_labels)
