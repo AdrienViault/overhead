@@ -9,7 +9,7 @@ processor = OwlViTProcessor.from_pretrained("google/owlvit-base-patch32")
 model = OwlViTForObjectDetection.from_pretrained("google/owlvit-base-patch32")
 
 # Load your image (ensure it's in RGB format)
-image_path = "data/images/test_images/reprojected/perspective_70.0deg.jpg"
+image_path = "data/images/test_images/reprojected/GSAC0346_perspective_right.jpg"
 image = Image.open(image_path).convert("RGB")
 
 # Define text labels to search for
