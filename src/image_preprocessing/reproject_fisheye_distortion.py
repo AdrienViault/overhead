@@ -101,21 +101,12 @@ def equirectangular_to_perspective(equi_img, out_width, out_height, fov_deg, the
                             borderValue=(0, 0, 0))
     return perspective
 
-def main_equirectangular_to_perspective():
-    # -------------------------
-    # 1. Load the equirectangular image.
-    # -------------------------
-    equi_img = cv2.imread("data/images/test_images/GSAC0346.JPG")
-    if equi_img is None:
-        print("Error: Could not load the equirectangular image!")
-        return
-
-    # -------------------------
-    # 2. Set parameters for the perspective views.
-    # -------------------------
-    out_width = 1080                  # Width of each perspective image in pixels.
-    horizontal_fov_deg = 90          # Horizontal FOV for each perspective image.
-    vertical_fov_deg = 120            # Vertical FOV (ignoring the very top and bottom).
+def project_equirectangular_left_right(
+        equi_img, 
+        out_width, 
+        horizontal_fov_deg,
+        vertical_fov_deg
+        ):
     
     # Compute the focal length from the horizontal FOV.
     # f = (out_width/2) / tan(horizontal_fov/2)
@@ -135,21 +126,57 @@ def main_equirectangular_to_perspective():
     # For a horizontal FOV of 90°, four images at yaw angles 0°, 90°, 180°, and 270°
     # will cover the full 360°.
     yaw_angles = [-centering_side_yaw, +centering_side_yaw]
-    pitch_deg = -10  # slight vertical tilt (centered over the horizon). Adjust if desired.
+    pitch_deg = 0  # slight vertical tilt (centered over the horizon). Adjust if desired.
     
     # -------------------------
     # 4. Loop over each yaw angle and generate the perspective image.
     # -------------------------
+    persp_images = []
     for yaw in yaw_angles:
         persp_img = equirectangular_to_perspective(equi_img,
                                                     out_width, out_height,
                                                     horizontal_fov_deg,
                                                     theta_deg=yaw,
                                                     phi_deg=pitch_deg)
-        # Save the perspective image with a filename indicating the yaw.
-        filename = "data/images/test_images/reprojected/perspective_{}deg.jpg".format(yaw)
-        cv2.imwrite(filename, persp_img)
-        print("Saved perspective image for yaw {}° as '{}'".format(yaw, filename))
+        persp_images.append(persp_img)
+    return persp_images
+
+def main_equirectangular_to_perspective():
+    # -------------------------
+    # 1. Load the equirectangular image.
+    # -------------------------
+    equi_img_path = "data/images/test_images/"
+    equi_img_name = 'GSAC0346'
+    equi_img_extension = '.JPG'
+    equi_img = cv2.imread(equi_img_path+equi_img_name+equi_img_extension)
+
+    if equi_img is None:
+        print("Error: Could not load the equirectangular image!")
+        return
+
+    # -------------------------
+    # 2. Set parameters for the perspective views.
+    # -------------------------
+    out_width = 1080                  # Width of each perspective image in pixels.
+    horizontal_fov_deg = 90          # Horizontal FOV for each perspective image.
+    vertical_fov_deg = 140            # Vertical FOV (ignoring the very top and bottom).
+    
+    persp_images = project_equirectangular_left_right(
+        equi_img, 
+        out_width, 
+        horizontal_fov_deg,
+        vertical_fov_deg
+        )
+    pic_suffixes = ['left', 'right']
+    pic_names = []
+    for pic_suffix in pic_suffixes:
+        pic_names.append(f"{equi_img_name}_perspective_{pic_suffix}.jpg")
+
+    out_dir_path = "data/images/test_images/reprojected/"
+    for persp_image, pic_name in zip(persp_images, pic_names):    
+        filename = out_dir_path + pic_name
+        cv2.imwrite(filename, persp_image)
+        print(f"Saved perspective image for {pic_name} side as {filename}")
 
 def cylindrical_projection(equi_img, vertical_fov_deg=120):
     """
