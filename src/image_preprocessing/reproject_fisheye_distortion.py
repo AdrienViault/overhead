@@ -101,6 +101,27 @@ def equirectangular_to_perspective(equi_img, out_width, out_height, fov_deg, the
                             borderValue=(0, 0, 0))
     return perspective
 
+def crop_bottom(
+        image,
+        height_in,
+        keep_top_crop_factor,
+        ):
+    """
+    Crops the bottom third of the given image.
+    
+    Parameters:
+      image: A NumPy array representing the image.
+      
+    Returns:
+      A new image (NumPy array) with the bottom third removed.
+    """
+    # Compute the new height, which is the top two-thirds of the original.
+    new_height = int(height_in * keep_top_crop_factor)
+    
+    # Return the cropped image.
+    return image[:new_height]
+
+
 def project_equirectangular_left_right(
         equi_img, 
         out_width, 
@@ -114,6 +135,8 @@ def project_equirectangular_left_right(
     
     # Compute the output height from the desired vertical FOV.
     # out_height = 2 * f * tan(vertical_fov/2)
+    keep_top_crop_factor = 2/3
+
     out_height = int(2 * f * np.tan(np.deg2rad(vertical_fov_deg / 2.0)))
     print("Output perspective image dimensions: {}x{}".format(out_width, out_height))
     
@@ -133,12 +156,20 @@ def project_equirectangular_left_right(
     # -------------------------
     persp_images = []
     for yaw in yaw_angles:
-        persp_img = equirectangular_to_perspective(equi_img,
-                                                    out_width, out_height,
-                                                    horizontal_fov_deg,
-                                                    theta_deg=yaw,
-                                                    phi_deg=pitch_deg)
-        persp_images.append(persp_img)
+        persp_img = equirectangular_to_perspective(
+            equi_img,
+            out_width, 
+            out_height,
+            horizontal_fov_deg,
+            theta_deg=yaw,
+            phi_deg=pitch_deg
+            )
+        persp_img_cropped = crop_bottom(
+            persp_img, 
+            out_height,
+            keep_top_crop_factor,
+            )
+        persp_images.append(persp_img_cropped)
     return persp_images
 
 def main_equirectangular_to_perspective():
