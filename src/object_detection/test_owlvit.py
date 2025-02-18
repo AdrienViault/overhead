@@ -15,7 +15,8 @@ image = Image.open(image_path).convert("RGB")
 # Define text labels to search for
 text_labels = [[
     "a photo of a street lamp", 
-    "a photo of an overhead line",
+    "a photo of an overhead utility distribution line",
+    "a photo of a tram power line",
     "a photo of a safety cone",
     "a photo of an overhead distribution line",
     "a photo of an utility pole",

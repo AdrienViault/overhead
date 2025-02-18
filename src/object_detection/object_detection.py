@@ -1,3 +1,4 @@
+import time
 import torch
 from PIL import Image
 import matplotlib.pyplot as plt
@@ -42,7 +43,7 @@ def visualize_detections(image, boxes, scores, labels):
     plt.tight_layout()
     plt.show()
 
-def detect_and_visualize(model, processor, image, text_labels, threshold=0.1, visualize=True):
+def detect_objects(model, processor, image, text_labels, threshold=0.1):
     """
     Performs object detection using a preloaded model and processor,
     prints the detections, and optionally visualizes the results.
@@ -53,7 +54,6 @@ def detect_and_visualize(model, processor, image, text_labels, threshold=0.1, vi
         image (PIL.Image): The input image (in RGB).
         text_labels (list): A list (or list of lists) of text queries.
         threshold (float): The detection threshold for post-processing.
-        visualize (bool): Whether to draw the detections on the image.
         
     Returns:
         boxes (Tensor): Bounding boxes of detections.
@@ -67,8 +67,16 @@ def detect_and_visualize(model, processor, image, text_labels, threshold=0.1, vi
     if next(model.parameters()).is_cuda:
         inputs = {k: v.to(model.device) for k, v in inputs.items()}
     
+    # Time the inference step
+    torch.cuda.synchronize()  # Ensure all GPU ops are finished
+    start_inference = time.time()
+    
     # Perform inference
     outputs = model(**inputs)
+    
+    torch.cuda.synchronize()
+    inference_time = time.time() - start_inference
+    print(f"Inference completed in {inference_time:.3f} seconds.")
     
     # Set target image sizes (height, width)
     target_sizes = torch.tensor([(image.height, image.width)])
@@ -92,21 +100,48 @@ def detect_and_visualize(model, processor, image, text_labels, threshold=0.1, vi
         box_coords = [round(i, 2) for i in box.tolist()]
         print(f"Detected {label} with confidence {round(score.item(), 3)} at location {box_coords}")
     
-    # Optionally visualize the detections
-    if visualize:
-        visualize_detections(image, boxes, scores, detected_labels)
-    
     return boxes, scores, detected_labels
 
-# Example usage:
 if __name__ == "__main__":
     from transformers import OwlViTProcessor, OwlViTForObjectDetection
 
+    visualize_detections_bool = False
+    threshold = 0.1
+
+    # Print GPU memory info before model loading
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+        props = torch.cuda.get_device_properties(device)
+        total_memory = props.total_memory / (1024 ** 2)  # in MB
+        print(f"Total GPU memory: {total_memory:.0f} MB")
+    else:
+        print("CUDA is not available.")
+    
     # Load processor and model (assume the model is then moved to GPU)
     processor = OwlViTProcessor.from_pretrained("google/owlvit-base-patch32")
     model = OwlViTForObjectDetection.from_pretrained("google/owlvit-base-patch32")
-    model.to("cuda")  # Move the model to GPU if available
 
+    # Time the model transfer to GPU
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
+        start_model = time.time()
+        model.to("cuda")  # Move the model to GPU
+        torch.cuda.synchronize()
+        model_transfer_time = time.time() - start_model
+        print(f"Model loaded to GPU in {model_transfer_time:.3f} seconds.")
+    else:
+        model.to("cpu")
+
+    # Print GPU memory info after model loading
+    if torch.cuda.is_available():
+        allocated = torch.cuda.memory_allocated(device) / (1024 ** 2)  # in MB
+        reserved = torch.cuda.memory_reserved(device) / (1024 ** 2)    # in MB
+        print(f"GPU memory allocated by PyTorch after loading model: {allocated:.0f} MB")
+        print(f"GPU memory reserved by PyTorch: {reserved:.0f} MB")
+        print("Note: GPU VRAM is used for storing the model parameters, intermediate activations during inference, "
+              "and also the input data (like your image batch). Maximum occupancy will include all these factors.")
+        print("Ensure there is enough free memory for additional tasks (like depth estimation) to run concurrently.")
+    
     # Load an image (ensure it's in RGB format)
     image_path = "data/images/test_images/reprojected/GSAC0346_perspective_right.jpg"
     image = Image.open(image_path).convert("RGB")
@@ -139,5 +174,14 @@ if __name__ == "__main__":
         "a photo of a switchgear",
     ]]
 
-    # Call the function
-    detect_and_visualize(model, processor, image, text_labels, threshold=0.1, visualize=True)
+    # Call the detection function
+    boxes, scores, detected_labels = detect_objects(
+        model, 
+        processor, 
+        image, 
+        text_labels, 
+        threshold=threshold,
+    )
+    
+    if visualize_detections_bool:
+        visualize_detections(image, boxes, scores, detected_labels)
