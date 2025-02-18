@@ -192,7 +192,7 @@ def main_equirectangular_to_perspective():
     out_width = 1080                  # Width of each perspective image in pixels.
     horizontal_fov_deg = 90          # Horizontal FOV for each perspective image.
     vertical_fov_deg = 140            # Vertical FOV (ignoring the very top and bottom).
-    keep_top_crop_factor =1.0
+    keep_top_crop_factor = 2/3
 
     persp_images = project_equirectangular_left_right(
         equi_img, 
@@ -213,6 +213,44 @@ def main_equirectangular_to_perspective():
         print(f"Saved perspective image for {pic_name} side as {filename}")
 
 
+def main_equirectangular_to_perspective_square():
+    # -------------------------
+    # 1. Load the equirectangular image.
+    # -------------------------
+    equi_img_path = "data/images/test_images/"
+    equi_img_name = 'GSAC0346'
+    equi_img_extension = '.JPG'
+    equi_img = cv2.imread(equi_img_path+equi_img_name+equi_img_extension)
+
+    if equi_img is None:
+        print("Error: Could not load the equirectangular image!")
+        return
+
+    # -------------------------
+    # 2. Set parameters for the perspective views.
+    # -------------------------
+    out_width = 1080                  # Width of each perspective image in pixels.
+    horizontal_fov_deg = 90          # Horizontal FOV for each perspective image.
+    vertical_fov_deg = 90            # Vertical FOV (ignoring the very top and bottom).
+    keep_top_crop_factor =1.0
+
+    persp_images = project_equirectangular_left_right(
+        equi_img, 
+        out_width, 
+        horizontal_fov_deg,
+        vertical_fov_deg,
+        keep_top_crop_factor
+        )
+    pic_suffixes = ['levelsquare_left', 'levelsquare_right']
+    pic_names = []
+    for pic_suffix in pic_suffixes:
+        pic_names.append(f"{equi_img_name}_perspective_{pic_suffix}.jpg")
+
+    out_dir_path = "data/images/test_images/reprojected/"
+    for persp_image, pic_name in zip(persp_images, pic_names):    
+        filename = out_dir_path + pic_name
+        cv2.imwrite(filename, persp_image)
+        print(f"Saved perspective image for {pic_name} side as {filename}")
 
 
 
@@ -289,3 +327,4 @@ def main_cylindrical_projection():
 
 if __name__ == '__main__':
     main_equirectangular_to_perspective()
+    main_equirectangular_to_perspective_square()
