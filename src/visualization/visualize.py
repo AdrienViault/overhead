@@ -1,12 +1,3 @@
-pip install geopy folium matplotlib
-```) and adjust the paths as needed.
-
-Below is the complete script:
-
----
-
-```python
-#!/usr/bin/env python
 import os
 import json
 import glob
@@ -59,38 +50,95 @@ def load_metadata_files(metadata_dir):
             print(f"Error reading {filepath}: {e}")
     return metadata_list
 
+def convert_gps_to_decimal(gps_entry):
+    """
+    Convert a GPS coordinate entry (with degrees, minutes, seconds) to decimal degrees.
+    
+    Args:
+        gps_entry (dict): A dictionary with keys 'degrees', 'minutes', 'seconds'.
+        
+    Returns:
+        float: The coordinate in decimal degrees.
+    """
+    try:
+        degrees = float(gps_entry.get("degrees", 0))
+        minutes = float(gps_entry.get("minutes", 0))
+        seconds = float(gps_entry.get("seconds", 0))
+    except Exception as e:
+        raise ValueError("Invalid GPS entry: " + str(e))
+    
+    decimal = degrees + minutes / 60 + seconds / 3600
+    return decimal
+
+def compute_destination(gps_metadata, bearing_deg, depth_m):
+    """
+    Compute a destination coordinate from a source GPS point given a bearing (in degrees)
+    and a distance (in meters).
+    
+    Args:
+        gps_metadata (dict): The GPS metadata dictionary from the JSON file.
+                             Expects nested dictionaries for GPSLatitude and GPSLongitude.
+        bearing_deg (float): Bearing in degrees (absolute angle).
+        depth_m (float): Distance in meters.
+        
+    Returns:
+        tuple: (latitude, longitude) of the computed destination.
+    """
+    try:
+        lat_entry = gps_metadata.get("GPSLatitude", {})
+        lon_entry = gps_metadata.get("GPSLongitude", {})
+        src_lat = convert_gps_to_decimal(lat_entry)
+        src_lon = convert_gps_to_decimal(lon_entry)
+    except Exception as e:
+        raise ValueError("Error converting GPS data: " + str(e))
+    
+    # Compute destination using geopy; note that distance.destination takes the bearing in degrees.
+    dest_point = distance(meters=depth_m).destination((src_lat, src_lon), bearing_deg)
+    return dest_point.latitude, dest_point.longitude
+
 def process_metadata(metadata_list):
     """
     For each metadata entry, compute the object location based on the source GPS,
-    absolute angle, and object depth.
+    absolute angle, and object depth. Adapted to the JSON structure where GPS coordinates
+    are provided as nested dictionaries with degrees, minutes, and seconds.
     
-    Returns a list of objects enriched with their computed location.
+    Returns:
+        List of objects enriched with their computed location and source GPS location.
     """
     objects_list = []
     for meta in metadata_list:
-        # Extract source GPS metadata
+        # Extract the source GPS metadata
         source_info = meta.get("source", {})
         gps_metadata = source_info.get("GPS_metadata", {})
-        # Skip if GPS data not available
+        
+        # Convert the source GPS coordinates from DMS to decimal degrees.
         try:
-            src_lat = float(gps_metadata.get("GPSLatitude"))
-            src_lon = float(gps_metadata.get("GPSLongitude"))
-        except (TypeError, ValueError):
-            print(f"Skipping metadata file {meta.get('metadata_file')} due to missing GPS data.")
+            lat_entry = gps_metadata.get("GPSLatitude", {})
+            lon_entry = gps_metadata.get("GPSLongitude", {})
+            src_lat = convert_gps_to_decimal(lat_entry)
+            src_lon = convert_gps_to_decimal(lon_entry)
+        except Exception as e:
+            print(f"Skipping metadata file {meta.get('metadata_file', 'unknown')} due to GPS error: {e}")
             continue
 
+        # Retrieve objects (expected to be a list based on your sample)
+        objs = meta.get("objects", [])
+        if not isinstance(objs, list):
+            # Fallback: if it's a dictionary, convert its values to a list.
+            objs = list(objs.values())
+        
         # Process each detected object
-        for obj in meta.get("objects", []):
+        for obj in objs:
             try:
                 angle = float(obj.get("absolute_angle", 0))
                 depth = float(obj.get("depth", 0))
-                # Compute destination using the provided bearing (absolute angle) and depth
+                # Compute destination using the bearing (absolute angle) and depth
                 dest_lat, dest_lon = compute_destination(gps_metadata, angle, depth)
             except Exception as e:
                 print(f"Error computing location for an object: {e}")
                 continue
 
-            # Enrich the object dictionary with computed location and source GPS for reference
+            # Enrich the object dictionary with computed location and source GPS location.
             obj["computed_location"] = {"latitude": dest_lat, "longitude": dest_lon}
             obj["source_location"] = {"latitude": src_lat, "longitude": src_lon}
             objects_list.append(obj)
@@ -98,28 +146,42 @@ def process_metadata(metadata_list):
 
 def create_map(objects_list, output_map="objects_map.html"):
     """
-    Create a folium map visualizing each object.
-    Each marker popup includes the detection confidence score and, if available, the path to the cropped image.
+    Create a folium map visualizing each object that passes the filter:
+    - Confidence score > 0.15.
+    - Object label does not contain "street lamp".
+    
+    Each marker popup includes the object's label, detection confidence score,
+    and, if available, the cropped image.
     """
-    if not objects_list:
-        print("No objects to map.")
+    # Filter objects according to the criteria
+    filtered_objects = []
+    for obj in objects_list:
+        score = obj.get("score", 0)
+        label = obj.get("label", "").lower()  # lowercase for case-insensitive comparison
+        if score > 0.15 and "street lamp" not in label:
+            filtered_objects.append(obj)
+    
+    if not filtered_objects:
+        print("No objects to map after filtering.")
         return
 
-    # Compute average location to center the map
-    avg_lat = sum(obj["computed_location"]["latitude"] for obj in objects_list) / len(objects_list)
-    avg_lon = sum(obj["computed_location"]["longitude"] for obj in objects_list) / len(objects_list)
+    # Compute the average location of filtered objects to center the map.
+    avg_lat = sum(obj["computed_location"]["latitude"] for obj in filtered_objects) / len(filtered_objects)
+    avg_lon = sum(obj["computed_location"]["longitude"] for obj in filtered_objects) / len(filtered_objects)
     fmap = folium.Map(location=[avg_lat, avg_lon], zoom_start=14)
 
-    for obj in objects_list:
+    for obj in filtered_objects:
         lat = obj["computed_location"]["latitude"]
         lon = obj["computed_location"]["longitude"]
         score = obj.get("score", 0)
+        label = obj.get("label", "Unknown")
         crop_path = obj.get("crop_path", "")
-        # Build a simple HTML popup
-        popup_html = f"<b>Confidence:</b> {score:.2f}"
+        
+        # Build an HTML popup with object label and confidence score.
+        popup_html = f"<b>Label:</b> {label}<br><b>Confidence:</b> {score:.2f}"
         if crop_path and os.path.exists(crop_path):
-            # The image is shown as an HTML image tag; adjust width as desired.
             popup_html += f"<br><img src='{crop_path}' width='100'/>"
+        
         folium.Marker([lat, lon], popup=folium.Popup(popup_html, max_width=250)).add_to(fmap)
 
     fmap.save(output_map)
