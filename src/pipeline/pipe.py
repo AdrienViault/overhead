@@ -171,8 +171,8 @@ def calculate_angle(image_path, box):
     y_center = (ymin + ymax) // 2
     # get angle
     angle = pixel_to_angle_perspective(
-        x_center, 
         image_width, 
+        x_center
         )
     return angle
 
@@ -465,7 +465,7 @@ def main():
     parser.add_argument(
         "--test",
         action="store_true",
-        type=bool,
+        default=True,
         help="Run in test mode: process only 10 random images from the dataset."
     )
     args = parser.parse_args()

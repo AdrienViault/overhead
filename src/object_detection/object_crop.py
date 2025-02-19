@@ -1,6 +1,7 @@
 import numpy as np
+import cv2
 
-def crop_object_image(image: np.ndarray, box) -> np.ndarray:
+def crop_object_image(image_path, box) -> np.ndarray:
     """
     Crops the input image to the region defined by the bounding box.
 
@@ -13,6 +14,7 @@ def crop_object_image(image: np.ndarray, box) -> np.ndarray:
     Returns:
         np.ndarray: The cropped image.
     """
+    image = cv2.imread(image_path)
     # If the box is a tensor, convert it to a list using the provided convention.
     if hasattr(box, 'tolist'):
         xmin, ymin, xmax, ymax = map(int, box.tolist())
@@ -30,17 +32,17 @@ def crop_object_image(image: np.ndarray, box) -> np.ndarray:
 
 # Example usage:
 if __name__ == "__main__":
-    import cv2
-    import torch
 
+    import torch
     # Load an example image (ensure the path is correct)
-    image = cv2.imread("data/images/test_images/reprojected/GSAC0346_perspective_left.jpg")
+    image_path = "data/images/test_images/reprojected/GSAC0346_perspective_left.jpg"
+
     
     # Example bounding box as a tensor in (xmin, ymin, xmax, ymax) format
     box_tensor = torch.tensor([50, 100, 250, 350])
     
     # Crop the image using the box tensor
-    cropped_img = crop_object_image(image, box_tensor)
+    cropped_img = crop_object_image(image_path, box_tensor)
     
     # Save the cropped image
     cv2.imwrite("data/images/test_images/reprojected/GSAC0346_perspective_left_cropped.jpg", cropped_img)
