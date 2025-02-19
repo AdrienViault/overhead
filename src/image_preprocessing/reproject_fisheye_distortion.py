@@ -170,7 +170,7 @@ def project_equirectangular_left_right(
             keep_top_crop_factor,
             )
         persp_images.append(persp_img_cropped)
-    return persp_images
+    return persp_images, yaw_angles
 
 
 def main_equirectangular_to_perspective():
@@ -194,7 +194,7 @@ def main_equirectangular_to_perspective():
     vertical_fov_deg = 140            # Vertical FOV (ignoring the very top and bottom).
     keep_top_crop_factor = 2/3
 
-    persp_images = project_equirectangular_left_right(
+    persp_images, _ = project_equirectangular_left_right(
         equi_img, 
         out_width, 
         horizontal_fov_deg,
@@ -234,7 +234,7 @@ def main_equirectangular_to_perspective_for_depth():
     vertical_fov_deg = 45            # Vertical FOV (ignoring the very top and bottom).
     keep_top_crop_factor =1.0
 
-    persp_images = project_equirectangular_left_right(
+    persp_images, _ = project_equirectangular_left_right(
         equi_img, 
         out_width, 
         horizontal_fov_deg,
