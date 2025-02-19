@@ -126,7 +126,7 @@ def detect_elec_objects(
     text_labels = [[
         "a photo of a street lamp", 
         "a photo of an overhead utility power distribution line",
-        "a photo of a n overhead tram power line",
+        "a photo of a an overhead tram power line",
         "a photo of a safety cone",
         "a photo of a Single-phase low-voltage pole",
         "a photo of a Three-phase low-voltage pole with neutral",
@@ -143,9 +143,7 @@ def detect_elec_objects(
         "a photo of a substation",
         "a photo of a secondary substation",
         "a photo of a busbar",
-        "a photo of a surge arrester",
-        "a photo of a grounding system",
-        ]]
+        "a photo of a surge arrester",        ]]
 
     # Call the detection function
     boxes, scores, detected_labels = detect_objects(
@@ -528,6 +526,7 @@ def process_image(
 
 
 def main():
+    start_time = time.time()
     parser = argparse.ArgumentParser(description="Process GoPro Max Sphere images through the pipeline.")
     parser.add_argument(
         "--root",
@@ -570,10 +569,10 @@ def main():
 
     print(f"Found {len(image_files)} image(s) in the dataset.")
 
-    # In test mode, sample 10 random images from the tree.
+    # In test mode, sample 1000 random images from the tree.
     if args.test:
-        image_files = random.sample(image_files, min(10, len(image_files)))
-        print("Test mode enabled: processing 10 random images.")
+        image_files = random.sample(image_files, min(1000, len(image_files)))
+        print("Test mode enabled: processing 1000 random images.")
 
     # Process each image in the list, timing each iteration.
     for image_path in image_files:
@@ -587,6 +586,8 @@ def main():
             depth_processor,
             device
             )
+    stop_time = time.time()
+    print(f"Processing complete in {stop_time - start_time:.2f} seconds.")
 
 if __name__ == "__main__":
     main()
