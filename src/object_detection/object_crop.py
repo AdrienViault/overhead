@@ -1,6 +1,6 @@
 import numpy as np
 
-def crop_image(image: np.ndarray, box) -> np.ndarray:
+def crop_object_image(image: np.ndarray, box) -> np.ndarray:
     """
     Crops the input image to the region defined by the bounding box.
 
@@ -40,7 +40,7 @@ if __name__ == "__main__":
     box_tensor = torch.tensor([50, 100, 250, 350])
     
     # Crop the image using the box tensor
-    cropped_img = crop_image(image, box_tensor)
+    cropped_img = crop_object_image(image, box_tensor)
     
     # Save the cropped image
     cv2.imwrite("data/images/test_images/reprojected/GSAC0346_perspective_left_cropped.jpg", cropped_img)

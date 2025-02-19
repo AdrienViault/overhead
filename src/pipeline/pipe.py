@@ -7,6 +7,9 @@ import cv2
 from src.image_preprocessing.reproject_fisheye_distortion import project_equirectangular_left_right
 from src.object_detection.object_detection import detect_objects
 from src.image_metadata_extraction.metadata_extraction import get_gps_info
+from src.object_detection.object_crop import crop_object_image
+from src.object_detection.object_horizontal_angle_position import pixel_to_angle_perspective
+from src.depth_estimation.depth_estimation import load_depth_model, visualize_depth_output
 import torch
 from transformers import OwlViTProcessor, OwlViTForObjectDetection
 from PIL import Image
@@ -154,28 +157,14 @@ def detect_elec_objects(
     )
     return boxes, scores, detected_labels
 
-def crop_object(image_path, obj):
-    """
-    Crop the detected object region from the original image.
-    """
-    # cropped_img = ...
-    # return cropped_img
-    pass
 
-def calculate_angle(obj, image_path):
-    """
-    Calculate the angle (relative to the sphere) for the detected object.
-    """
-    # angle = ...
-    # return angle
-    pass
 
-def estimate_depth(cropped_img):
+def estimate_depth(image_path):
     """
     Estimate the metric depth for the cropped image of the object.
     """
-    # depth = ...
-    # return depth
+    image = Image.open(image_path).convert("RGB")
+
     pass
 
 def empirical_depth_correction(predicted_depth):
