@@ -1,5 +1,5 @@
 from PIL import Image, ExifTags
-
+from PIL.TiffImagePlugin import IFDRational
 def get_exif_data(image):
     exif_data = image._getexif() or {}
     exif = {}
@@ -7,6 +7,30 @@ def get_exif_data(image):
         decoded = ExifTags.TAGS.get(tag, tag)
         exif[decoded] = value
     return exif
+
+
+def convert_tuples_to_dicts(name, tuple):
+    if 'latitude' in name.lower():
+        return {
+            "degrees": tuple[0],
+            "minutes": tuple[1],
+            "seconds": tuple[2]
+        }
+    elif 'longitude' in name.lower():
+        return {
+            "degrees": tuple[0],
+            "minutes": tuple[1],
+            "seconds": tuple[2]
+        }
+    elif 'timestamp' in name.lower():
+        return {
+            "hour": tuple[0],
+            "minute": tuple[1],
+            "second": tuple[2]
+        }
+    else:
+        raise ValueError(f"Unknown tuple name: {name}")
+    
 
 def get_gps_info_from_exif(exif):
     gps_info = exif.get("GPSInfo")
@@ -17,7 +41,16 @@ def get_gps_info_from_exif(exif):
     gps_data = {}
     for key in gps_info.keys():
         decoded_key = ExifTags.GPSTAGS.get(key, key)
-        gps_data[decoded_key] = gps_info[key]
+
+        # if type is byte, convert it to string
+        if isinstance(gps_info[key], bytes):
+            gps_data[decoded_key] = str(gps_info[key])
+        # if type is IFDRational, convert it to float
+        #verify if the key is json serializable
+        elif isinstance(gps_info[key], IFDRational):
+            gps_data[decoded_key] = float(gps_info[key])
+        else:
+            gps_data[decoded_key] = gps_info[key]
     return gps_data
 
 def get_gps_info(image_path):

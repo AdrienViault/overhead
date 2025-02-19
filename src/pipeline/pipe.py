@@ -233,6 +233,14 @@ def init_image_metadata(
     # verify that source_gps_metadata is a dict
     if not isinstance(source_gps_metadata, dict):
         raise ValueError("source_gps_metadata should be a dictionary")
+    
+    #parse components of source_gps_metadata and convert if there are binary elements
+    # then convert them to string and print a warning
+    for key, value in source_gps_metadata.items():
+        if isinstance(value, bytes):
+            source_gps_metadata[key] = value.decode()
+            print(f"Warning: {key} is binary, converting to string")
+
     #create dictionary with source image information
     # initiate dictionary with a source element that will contain
     # gps data from source image
@@ -357,7 +365,13 @@ def process_image(
    
     source_gps_metadata = get_gps_info(image_path)
     #get image angle from gps data
-    source_angle = source_gps_metadata['GPSImgDirection']
+    #verify that source_gps_metadata has a GPSImgDirection key
+    if 'GPSImgDirection' not in source_gps_metadata:
+        source_angle = 0
+        print(f"Warning: No GPSImgDirection found in {image_path}")
+        print(f"Setting source angle to {source_angle}")
+    else:
+        source_angle = source_gps_metadata['GPSImgDirection']
 
     image_relative_metadata = init_image_metadata(
         image_path,
