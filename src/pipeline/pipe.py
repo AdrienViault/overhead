@@ -117,33 +117,19 @@ def detect_elec_objects(
     Return a list of detected objects with their positions.
     """
 
-    threshold = 0.1
+    threshold = 0.15
 
     # Load an image (ensure it's in RGB format)
     image = Image.open(image_path).convert("RGB")
 
     # Define text labels to search for
     text_labels = [[
-        "a photo of a street lamp", 
+        "a photo of a street lamp",
+        "a photo of a traffic light pole",
         "a photo of an overhead utility power distribution line",
-        "a photo of a an overhead tram power line",
-        "a photo of a safety cone",
-        "a photo of a Single-phase low-voltage pole",
-        "a photo of a Three-phase low-voltage pole with neutral",
-        "a photo of a Three-phase low-voltage pole without neutral",
-        "a photo of a Three-phase medium-voltage pole",
-        "a photo of a Three-phase medium-voltage pole with ground wire",
-        "a photo of a Three-phase high-voltage transmission tower",
-        "a photo of a Combined utility pole (power + telecom)",
-        "a photo of a Pole-Mounted Transformers",
-        "a photo of a switchgear",
-        "a photo of an underground Distribution Box",
-        "a photo of a Remote Terminal Units",
-        "a photo of a transformer",
-        "a photo of a substation",
-        "a photo of a secondary substation",
-        "a photo of a busbar",
-        "a photo of a surge arrester",        ]]
+        "a photo of a utility pole",
+        "a photo of an electricity management box",
+    ]]
 
     # Call the detection function
     boxes, scores, detected_labels = detect_objects(
@@ -571,7 +557,7 @@ def main():
 
     # In test mode, sample 1000 random images from the tree.
     if args.test:
-        image_files = random.sample(image_files, min(1000, len(image_files)))
+        image_files = random.sample(image_files, min(15000, len(image_files)))
         print("Test mode enabled: processing 1000 random images.")
 
     # Process each image in the list, timing each iteration.
