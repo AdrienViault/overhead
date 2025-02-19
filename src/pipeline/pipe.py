@@ -494,7 +494,7 @@ def main():
     detection_model, detection_processor = load_detection_model()
 
     # Load the depth estimation model
-    depth_model, depth_processor = load_depth_model(device)
+    depth_processor, depth_model = load_depth_model(device)
 
     # Recursively search for image files (assuming JPG/JPEG)
     image_files = []

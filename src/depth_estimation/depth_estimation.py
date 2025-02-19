@@ -15,7 +15,6 @@ def load_depth_model(device):
     Returns:
         image_processor: The image processor.
         model: The depth estimation model on the given device.
-        load_time (float): Time taken to load and transfer the model.
     """
     start_model = time.time()
     
