@@ -225,10 +225,19 @@ def get_pixel_depth(depth, box):
 
     return corrected_depth_value
 
+def add_point_to_depth_image(cropped_depth_image):
+    #get the center of the image
+    center = (cropped_depth_image.shape[1] // 2, cropped_depth_image.shape[0] // 2)
+    #add a point at the center of the image
+    cv2.circle(cropped_depth_image, center, 5, (255, 255, 255), -1)
+    #write the value of the point
+    cv2.putText(cropped_depth_image, str(cropped_depth_image[center[1], center[0]]), center, cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+    return cropped_depth_image, cropped_depth_image[center[1], center[0]]
 
 def init_image_metadata(        
         image_path,
-        source_gps_metadata
+        source_gps_metadata,
+        side
         ):
     # verify that source_gps_metadata is a dict
     if not isinstance(source_gps_metadata, dict):
@@ -249,7 +258,8 @@ def init_image_metadata(
         'source': {
             'GPS_metadata': source_gps_metadata,
             'path': image_path
-        }
+        },
+        'side': side
     }
     
     return metadata_dict
@@ -258,6 +268,7 @@ def update_metadata(
         image_relative_metadata,
         projection_path,
         cropped_path,
+        croped_depth_path,
         processed_dir, 
         detected_label,
         score,
@@ -266,7 +277,7 @@ def update_metadata(
         relative_angle, 
         absolute_angle,
         depth_value,
-        obj_path
+        
     ):
     """
     add to image_relative_metadata objects a new one with the info given in input
@@ -278,10 +289,40 @@ def update_metadata(
     #check if box is a tensor
     if hasattr(box, 'tolist'):
         box = box.tolist()
+
+     # Ensure numeric values are plain Python numbers
+    try:
+        score = float(score)
+    except Exception:
+        score = score  # or handle the conversion error as needed
+
+    try:
+        relative_angle = float(relative_angle)
+    except Exception:
+        relative_angle = relative_angle
+
+    try:
+        absolute_angle = float(absolute_angle)
+    except Exception:
+        absolute_angle = absolute_angle
+
+    try:
+        depth_value = float(depth_value)
+    except Exception:
+        depth_value = depth_value
+
+    # Ensure paths and label are strings
+    projection_path = str(projection_path)
+    cropped_path = str(cropped_path)
+    croped_depth_path = str(croped_depth_path)
+    detected_label = str(detected_label)
+
+
     #create dictionary with object information
     obj_dict = {
         'projection_path': projection_path,
         'crop_path': cropped_path,
+        'depth_path': croped_depth_path,
         'label': detected_label,
         'score': score,
         'index': idx,
@@ -294,7 +335,6 @@ def update_metadata(
         'relative_angle': relative_angle,
         'absolute_angle': absolute_angle,
         'depth': depth_value,
-        'path': obj_path
     }
     #verify if objects key exists in image metadata
     if 'objects' not in image_relative_metadata:
@@ -305,19 +345,26 @@ def update_metadata(
     return image_relative_metadata
 
 
-def save_metadata(processed_dir, image_source_name, metadata):
+
+def save_metadata(processed_dir, image_source_name, metadata, side):
     """
-    Save or log the metadata for the processed object.
-    This might be in a CSV, JSON, or a database.
+    Save or log the metadata for the processed object in a JSON file.
+    Before saving, print out the type information for all keys/values.
     """
     # Verify that metadata is a dictionary  
     if not isinstance(metadata, dict):
         raise ValueError("metadata should be a dictionary")
-    # save metadata in a json file
-    metadata_path = os.path.join(processed_dir, f"{image_source_name}_metadata.json")
-    with open(metadata_path, 'w') as f:
-        json.dump(metadata, f, indent=4)
-    print(f"Saved metadata for {image_source_name} in {metadata_path}") 
+    
+    metadata_path = os.path.join(processed_dir, f"{image_source_name}_{side}_metadata.json")
+    
+    try:
+        with open(metadata_path, 'w') as f:
+            json.dump(metadata, f, indent=4)
+        print(f"Saved metadata for {image_source_name} in {metadata_path}")
+    except TypeError as e:
+        print("TypeError during json.dump:", e)
+        # Optionally, reprint the metadata structure for further debugging.
+        raise  
 
 
 def process_image(
@@ -358,7 +405,7 @@ def process_image(
     batch    = parts[raw_index + 4]
 
     # Build the corresponding processed directory:
-    processed_dir = os.path.join(output_base, "Grenoble", user, sequence, batch)
+    processed_dir = os.path.join(output_base, user, sequence, batch)
     os.makedirs(processed_dir, exist_ok=True)
     image_dir, image_name, image_ext = decompose_image_path(image_path)
    
@@ -373,10 +420,7 @@ def process_image(
     else:
         source_angle = source_gps_metadata['GPSImgDirection']
 
-    image_relative_metadata = init_image_metadata(
-        image_path,
-        source_gps_metadata
-        )
+
 
     horizontal_fov_deg = 90
     # --- Projection step ---
@@ -407,6 +451,12 @@ def process_image(
         [left_img_path, right_img_path],
         yaw_angles
         ):
+        side_image_relative_metadata = init_image_metadata(
+            image_path,
+            source_gps_metadata, 
+            side
+            )
+
         # get image leftstide relative angle
         relative_leftside_angle = get_leftside_image_relative_angle(yaw, horizontal_fov_deg)
 
@@ -417,50 +467,65 @@ def process_image(
             detection_processor
             )
         
-        for idx, box, score, detected_label in zip(
-            range(len(boxes)),
-            boxes,
-            scores,
-            detected_labels
-        ):
-            cropped_img = crop_object_image(proj_img_path, box)
-            # save cropped image
-            cropped_img_file_name = f"{path_obj.stem}_obj{idx}.jpg"
-            cropped_img_path = os.path.join(processed_dir, cropped_img_file_name)
-            cv2.imwrite(cropped_img_path, cropped_img)
-            
-            object_relative_angle = calculate_angle(image_path, box)
-            object_absolute_angle = source_angle + relative_leftside_angle + object_relative_angle
-            
+        if len(scores) > 0:
             depth_map = estimate_depth(
                 depth_model,
                 depth_processor,
                 proj_img_path,
                 device
                 )
-            depth_value = get_pixel_depth(depth_map, box)
-            obj_path = os.path.join(processed_dir, f"{path_obj.stem}_obj{idx}_{detected_label}.jpg")
-            # Example: cropped_img.save(obj_path)
-            update_metadata(
-                #fill with object metadata
-                image_relative_metadata,
-                proj_img_path,
-                cropped_img_path,
-                processed_dir,
-                detected_label,
-                score,
-                idx,
-                box,
-                object_relative_angle,
-                object_absolute_angle,
-                depth_value,
-                obj_path,
-                )
-    save_metadata(
-        processed_dir,
-        image_name,
-        image_relative_metadata
-        )
+            # save depth map in output folder
+            depth_map_file_name = f"{path_obj.stem}_{side}_depth_map.jpg"
+            depth_map_path = os.path.join(processed_dir, depth_map_file_name)
+            cv2.imwrite(depth_map_path, depth_map)
+
+            for idx, box, score, detected_label in zip(
+                range(len(boxes)),
+                boxes,
+                scores,
+                detected_labels
+            ):
+                cropped_img = crop_object_image(proj_img_path, box)
+                cropped_depth_img = crop_object_image(depth_map_path, box)
+                # save cropped image
+                cropped_img_file_name = f"{path_obj.stem}_{side}_obj{idx}_{detected_label}_img.jpg"
+                cropped_depth_map_name = f"{path_obj.stem}_{side}_obj{idx}_{detected_label}_depth_map.jpg"
+                cropped_img_path = os.path.join(processed_dir, cropped_img_file_name)
+                cropped_depth_map_path = os.path.join(processed_dir, cropped_depth_map_name)
+                cv2.imwrite(cropped_img_path, cropped_img)
+
+                #add at the center of depth cropped image a point and write the value of the point
+                cropped_img, depth_value = add_point_to_depth_image(cropped_depth_img)
+                cv2.imwrite(cropped_depth_map_path, cropped_img)
+
+                object_relative_angle = calculate_angle(image_path, box)
+                object_absolute_angle = source_angle + relative_leftside_angle + object_relative_angle
+                
+                depth_value = get_pixel_depth(depth_map, box)
+
+                # Example: cropped_img.save(obj_path)
+                update_metadata(
+                    #fill with object metadata
+                    side_image_relative_metadata,
+                    proj_img_path,
+                    cropped_img_path,
+                    cropped_depth_map_path,
+                    processed_dir,
+                    detected_label,
+                    score,
+                    idx,
+                    box,
+                    object_relative_angle,
+                    object_absolute_angle,
+                    depth_value,
+                    )
+        save_metadata(
+            processed_dir,
+            image_name,
+            side_image_relative_metadata,
+            side
+            )
+
 
 def main():
     parser = argparse.ArgumentParser(description="Process GoPro Max Sphere images through the pipeline.")

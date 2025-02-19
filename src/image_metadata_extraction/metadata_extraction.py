@@ -10,23 +10,32 @@ def get_exif_data(image):
 
 
 def convert_tuples_to_dicts(name, tuple):
+    #convert tuple of potential IFDRational to list of floats
+    float_list = []
+
+    for i in range(len(tuple)):
+        if isinstance(tuple[i], IFDRational):
+            float_list.append(float(tuple[i])) 
+        else:
+            float_list.append(tuple[i])
+
     if 'latitude' in name.lower():
         return {
-            "degrees": tuple[0],
-            "minutes": tuple[1],
-            "seconds": tuple[2]
+            "degrees": float_list[0],
+            "minutes": float_list[1],
+            "seconds": float_list[2]
         }
     elif 'longitude' in name.lower():
         return {
-            "degrees": tuple[0],
-            "minutes": tuple[1],
-            "seconds": tuple[2]
+            "degrees": float_list[0],
+            "minutes": float_list[1],
+            "seconds": float_list[2]
         }
     elif 'timestamp' in name.lower():
         return {
-            "hour": tuple[0],
-            "minute": tuple[1],
-            "second": tuple[2]
+            "hour": float_list[0],
+            "minute": float_list[1],
+            "second": float_list[2]
         }
     else:
         raise ValueError(f"Unknown tuple name: {name}")
@@ -41,9 +50,14 @@ def get_gps_info_from_exif(exif):
     gps_data = {}
     for key in gps_info.keys():
         decoded_key = ExifTags.GPSTAGS.get(key, key)
-
+        # if key is tuple, use convertion function
+        if isinstance(gps_info[key], tuple):
+            gps_data[decoded_key] = convert_tuples_to_dicts(
+                decoded_key, 
+                gps_info[key]
+                )
         # if type is byte, convert it to string
-        if isinstance(gps_info[key], bytes):
+        elif isinstance(gps_info[key], bytes):
             gps_data[decoded_key] = str(gps_info[key])
         # if type is IFDRational, convert it to float
         #verify if the key is json serializable
