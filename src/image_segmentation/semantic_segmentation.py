@@ -114,7 +114,7 @@ def main():
     # ------------------------------
     image_path = "data/images/test_images/reprojected/GSAC0346_perspective_right.jpg"  # Replace with your local image path
     output_path = "data/images/semantic_segmentation/segmented_output.png"
-    dataset_name = "ade20k"  # ade20k or "voc2012"
+    dataset_name = "ade20k"  # or "voc2012"
     head_type = "ms"  # "ms" (multi-scale) or "linear"
     head_dataset = "ade20k"
     backbone_size = "base"  # "small", "base", "large", or "giant"
