@@ -22,7 +22,7 @@ import cv2
 import mmcv
 from mmseg.apis import init_segmentor, inference_segmentor
 
-# Import the DINOv2 segmentation modules (make sure dinov2 is installed or the repo path is added)
+# Import the DINOv2 segmentation modules
 import dinov2.eval.segmentation.models
 import dinov2.eval.segmentation.utils.colormaps as colormaps
 
@@ -90,9 +90,20 @@ def render_segmentation(segmentation_logits, dataset):
     """
     colormap = DATASET_COLORMAPS[dataset]
     colormap_array = np.array(colormap, dtype=np.uint8)
-    # Offset labels by 1 if needed (depends on labeling scheme)
-    segmentation_values = colormap_array[segmentation_logits + 1]
+    segmentation_values = colormap_array[segmentation_logits]
     return Image.fromarray(segmentation_values)
+
+def print_gpu_usage(stage: str):
+    """
+    Prints current GPU memory usage if CUDA is available.
+    """
+    if torch.cuda.is_available():
+        allocated = torch.cuda.memory_allocated() / (1024 ** 3)
+        reserved = torch.cuda.memory_reserved() / (1024 ** 3)
+        max_allocated = torch.cuda.max_memory_allocated() / (1024 ** 3)
+        print(f"[{stage}] GPU usage: allocated={allocated:.2f}GB, reserved={reserved:.2f}GB, max_allocated={max_allocated:.2f}GB")
+    else:
+        print(f"[{stage}] CUDA is not available.")
 
 # -----------------------------------------------------------------------------
 # Main function
@@ -101,23 +112,16 @@ def main():
     # ------------------------------
     # Configuration: file paths and parameters
     # ------------------------------
-    # Local image file to segment
-    image_path = "path/to/your_local_image.jpg"  # <-- Replace with your local image path
-    # Output file where the segmented image will be saved
-    output_path = "segmented_output.png"
-    # Dataset used for the segmentation head's colormap (choose "voc2012" or "ade20k")
-    dataset_name = "voc2012"
-    # Segmentation head type: "ms" (multi-scale) or "linear"
-    head_type = "ms"
-    # Dataset used for segmentation head configuration (affects config and weights)
-    head_dataset = "voc2012"
-    # DINOv2 backbone size: "small", "base", "large", or "giant"
-    backbone_size = "small"
+    image_path = "data/images/test_images/reprojected/GSAC0346_perspective_right.jpg"  # Replace with your local image path
+    output_path = "data/images/semantic_segmentation/segmented_output.png"
+    dataset_name = "ade20k"  # ade20k or "voc2012"
+    head_type = "ms"  # "ms" (multi-scale) or "linear"
+    head_dataset = "ade20k"
+    backbone_size = "base"  # "small", "base", "large", or "giant"
 
     # ------------------------------
     # Step 1: Load the DINOv2 Backbone Model
     # ------------------------------
-    # Map backbone sizes to corresponding architecture names
     backbone_archs = {
         "small": "vits14",
         "base": "vitb14",
@@ -134,6 +138,7 @@ def main():
         backbone_model.cuda()
     else:
         print("CUDA is not available. Running on CPU.")
+    print_gpu_usage("After backbone load")
 
     # ------------------------------
     # Step 2: Load Segmentation Head Configuration and Weights
@@ -157,17 +162,22 @@ def main():
     if torch.cuda.is_available():
         segmenter.cuda()
     segmenter.eval()
+    print_gpu_usage("After segmentation model load")
 
     # ------------------------------
     # Step 3: Load Local Image and Run Segmentation
     # ------------------------------
     print(f"Loading local image from {image_path}...")
     image = Image.open(image_path).convert("RGB")
-    # Convert the image from RGB to BGR, as expected by mmseg (OpenCV format)
-    image_array = np.array(image)[:, :, ::-1]
+    # Optionally downscale the image if memory is an issue:
+    # image = image.resize((image.width // 2, image.height // 2))
+    image_array = np.array(image)[:, :, ::-1]  # Convert RGB to BGR (as expected by mmseg)
 
     print("Performing segmentation inference...")
-    segmentation_logits = inference_segmentor(segmenter, image_array)[0]  # inference_segmentor returns a list; we take the first output
+    # Use AMP autocast to potentially reduce memory usage
+    with torch.cuda.amp.autocast():
+        segmentation_logits = inference_segmentor(segmenter, image_array)[0]
+    print_gpu_usage("After inference")
 
     # ------------------------------
     # Step 4: Render and Save Segmentation Output

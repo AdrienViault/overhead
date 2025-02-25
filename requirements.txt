@@ -8,3 +8,17 @@ numpy
 requests
 github.com/facebookresearch/segment-anything.git
 
+
+omegaconf
+torchmetrics
+fvcore
+iopath
+submitit
+
+
+python>=3.10
+torch>=2.5.1
+torchvision>=0.20.1
+xformers>=0.0.18
+mmcv-full>=1.5.0
+mmsegmentation>=0.27.0
