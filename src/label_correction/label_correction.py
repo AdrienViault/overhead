@@ -3,6 +3,7 @@ import glob
 import json
 import random
 import cv2
+import shutil
 import matplotlib.pyplot as plt
 from collections import defaultdict
 
@@ -20,7 +21,7 @@ def load_all_objects(root_dir):
             # Each metadata file is expected to have a key "objects" which is a list of detections.
             if "objects" in data:
                 for obj in data["objects"]:
-                    # You can store the metadata file reference if needed
+                    # Record which metadata file the detection came from.
                     obj["metadata_file"] = meta_file
                     all_objects.append(obj)
         except Exception as e:
@@ -87,7 +88,7 @@ def interactive_selection(sampled_detections, desired_count=50):
                 print(f"  [Warning] Unable to load image at: {crop_path}")
                 continue
 
-            # Display using matplotlib (convert BGR to RGB).
+            # Display the cropped image using matplotlib (convert BGR to RGB).
             img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             plt.figure(figsize=(6,4))
             plt.imshow(img_rgb)
@@ -95,7 +96,7 @@ def interactive_selection(sampled_detections, desired_count=50):
             plt.axis("off")
             plt.show()
 
-            # Ask user for input.
+            # Ask user whether to keep the sample.
             keep = input("Keep this sample? (y/n): ").strip().lower()
             if keep == "y":
                 # Record the sample using the full projection image and bounding box.
@@ -112,7 +113,7 @@ def interactive_selection(sampled_detections, desired_count=50):
     return selected_samples
 
 # ==========================
-# Step 5: Convert selected samples to a COCO-style dataset.
+# Step 5: Convert selected samples to a COCO-style dataset and copy images.
 # ==========================
 def get_image_dimensions(image_path):
     """Return (width, height) of the image. Uses default values if image cannot be loaded."""
@@ -122,10 +123,11 @@ def get_image_dimensions(image_path):
     h, w = img.shape[:2]
     return w, h
 
-def convert_to_coco(selected_samples, output_file='coco_selected.json'):
+def convert_to_coco(selected_samples, output_dir='data/coco_like_object_dataset', output_file='annotations.json'):
     """
     Convert the selected samples (dict mapping label -> list of samples) into a COCO-style JSON.
-    Each sample uses the full projection image and bounding box.
+    For each image used (the full projection image), copy it to output_dir/images with a new name prefixed
+    by an 8-digit increment (e.g., "00000001_imgname.jpg"). The "file_name" in the JSON is updated accordingly.
     """
     coco = {
         "info": {
@@ -161,29 +163,51 @@ def convert_to_coco(selected_samples, output_file='coco_selected.json'):
     
     image_id = 1
     annotation_id = 1
-    images_dict = {}  # To avoid duplicates if multiple objects come from the same image.
+    images_dict = {}  # Keyed by the original projection_path.
     
+    # Prepare the output directories.
+    os.makedirs(output_dir, exist_ok=True)
+    images_output_dir = os.path.join(output_dir, "images")
+    os.makedirs(images_output_dir, exist_ok=True)
+    
+    # We'll assign an 8-digit increment to each unique image.
+    new_filename_mapping = {}
+    counter = 1
+
     for label, sample_list in selected_samples.items():
         for sample in sample_list:
             proj_path = sample.get("projection_path")
-            if not proj_path:
+            if not proj_path or not os.path.exists(proj_path):
                 continue
-            # If we haven't added this image yet, add it.
+            # If we haven't processed this image yet, add it.
             if proj_path not in images_dict:
                 width, height = get_image_dimensions(proj_path)
+                original_name = os.path.basename(proj_path)
+                new_name = f"{counter:08d}_{original_name}"
+                # Copy the image to the new dataset folder.
+                destination_path = os.path.join(images_output_dir, new_name)
+                try:
+                    shutil.copy(proj_path, destination_path)
+                except Exception as e:
+                    print(f"Error copying {proj_path} to {destination_path}: {e}")
+                    continue
+                # Record the new filename.
+                new_filename_mapping[proj_path] = new_name
+                # Create the image entry for COCO.
                 images_dict[proj_path] = {
                     "id": image_id,
                     "width": width,
                     "height": height,
-                    "file_name": os.path.basename(proj_path),
+                    "file_name": new_name,
                     "license": 1,
                     "flickr_url": "",
                     "coco_url": "",
                     "date_captured": "2025-02-26"
                 }
                 image_id += 1
+                counter += 1
             
-            # Convert bounding box [xmin, ymin, xmax, ymax] to [x, y, width, height].
+            # Convert the bounding box [xmin, ymin, xmax, ymax] to [x, y, width, height].
             bbox_info = sample.get("bounding_box", {})
             xmin = bbox_info.get("xmin", 0)
             ymin = bbox_info.get("ymin", 0)
@@ -206,9 +230,11 @@ def convert_to_coco(selected_samples, output_file='coco_selected.json'):
 
     coco["images"] = list(images_dict.values())
     
-    with open(output_file, "w") as f:
+    # Write the JSON annotations file.
+    output_json_path = os.path.join(output_dir, output_file)
+    with open(output_json_path, "w") as f:
         json.dump(coco, f, indent=4)
-    print(f"COCO JSON saved to {output_file}")
+    print(f"COCO JSON saved to {output_json_path}")
 
 # ==========================
 # Main workflow
@@ -228,20 +254,24 @@ def main():
     # 3. Plot confidence score distributions for each class.
     plot_confidence_distributions(objects_by_label)
     
-    # 4. For each class, randomly sample up to 100 instances.
+    # 4. For each class, randomly sample up to 300 instances.
+    nb_instances = 300
     sampled_detections = {}
     for label, det_list in objects_by_label.items():
-        if len(det_list) > 100:
-            sampled_detections[label] = random.sample(det_list, 100)
+        if len(det_list) > nb_instances:
+            sampled_detections[label] = random.sample(det_list, nb_instances)
         else:
             sampled_detections[label] = det_list
         print(f"Sampled {len(sampled_detections[label])} instances for label '{label}'.")
     
     # 5. Interactive selection: manually review each cropped image sample.
-    selected_samples = interactive_selection(sampled_detections, desired_count=2)
+    desired_count = 30
+    selected_samples = interactive_selection(sampled_detections, desired_count=desired_count)
     
-    # 6. Convert the selected samples into a COCO-style dataset.
-    convert_to_coco(selected_samples, output_file='coco_selected.json')
+    # 6. Convert the selected samples into a COCO-style dataset,
+    #    copy the full projection images into data/coco_like_object_dataset/images,
+    #    and update the JSON file accordingly.
+    convert_to_coco(selected_samples, output_dir='data/coco_like_object_dataset', output_file='annotations.json')
 
 if __name__ == "__main__":
     main()
