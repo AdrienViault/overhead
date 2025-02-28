@@ -124,6 +124,9 @@ def detect_elec_objects(
 
 
     items_names =  [[
+        "trash can",
+        "letter box",
+        "post box",
         "street lamp",
         "traffic light pole",
         "overhead utility power distribution line",
