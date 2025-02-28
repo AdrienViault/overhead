@@ -122,14 +122,26 @@ def detect_elec_objects(
     # Load an image (ensure it's in RGB format)
     image = Image.open(image_path).convert("RGB")
 
-    # Define text labels to search for
-    text_labels = [[
-        "a photo of a street lamp",
-        "a photo of a traffic light pole",
-        "a photo of an overhead utility power distribution line",
-        "a photo of a utility pole",
-        "a photo of an electricity management box",
+
+    items_names =  [[
+        "street lamp",
+        "traffic light pole",
+        "overhead utility power distribution line",
+        "utility pole",
+        "electricity management box",
     ]]
+
+    ##create text_labels that is sames as items_names + "a photo of a" before or "a photo of an" if items starts with a vowel
+    text_labels = []
+    for items in items_names:
+        for item in items:
+            if item[0] in ['a', 'e', 'i', 'o', 'u']:
+                text_labels.append(f"a photo of an {item}")
+            else:
+                text_labels.append(f"a photo of a {item}")
+    
+    text_labels = [text_labels]
+
 
     # Call the detection function
     boxes, scores, detected_labels = detect_objects(
@@ -455,6 +467,8 @@ def process_image(
             detection_processor
             )
         
+
+        
         if len(scores) > 0:
             depth_map = estimate_depth(
                 depth_model,
@@ -476,11 +490,20 @@ def process_image(
                 scores,
                 detected_labels
             ):
+                # remove "a photo of a" or "a photo of an" from beginning of detected_label
+                if detected_label.startswith("a photo of an "):
+                    detected_label = detected_label[13:]
+                elif detected_label.startswith("a photo of a "):
+                    detected_label = detected_label[12:]
+
+                detected_label_nospace = detected_label.replace(" ", "_")
+
+                # Crop the object from the image
                 cropped_img = crop_object_image(proj_img_path, box)
                 cropped_depth_img = crop_object_image(depth_map_path, box)
                 # save cropped image
-                cropped_img_file_name = f"{path_obj.stem}_{side}_obj{idx}_{detected_label}_img.jpg"
-                cropped_depth_map_name = f"{path_obj.stem}_{side}_obj{idx}_{detected_label}_depth_map.jpg"
+                cropped_img_file_name = f"{path_obj.stem}_{side}_obj{idx}_{detected_label_nospace}_img.jpg"
+                cropped_depth_map_name = f"{path_obj.stem}_{side}_obj{idx}_{detected_label_nospace}_depth_map.jpg"
                 cropped_img_path = os.path.join(processed_dir, cropped_img_file_name)
                 cropped_depth_map_path = os.path.join(processed_dir, cropped_depth_map_name)
                 cv2.imwrite(cropped_img_path, cropped_img)
