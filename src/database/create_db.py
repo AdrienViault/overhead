@@ -62,7 +62,7 @@ markers = load_markers_from_metadata(metadata_dir)
 print(f"Loaded {len(markers)} markers from metadata.")
 
 # Connect to PostgreSQL database.
-conn = psycopg2.connect(dbname="geodb", user="postgres", password="yourpassword", host="localhost")
+conn = psycopg2.connect(dbname="geodb", user="postgres", password="D^A@cn5W", host="localhost")
 cur = conn.cursor()
 
 # Create a list of records to insert.
@@ -91,6 +91,14 @@ query = """
 INSERT INTO markers (label, score, geom, projection_path, detection_path, depth_path)
 VALUES %s;
 """
+
+
+#clear database
+print("Clearing the markers table...")
+cur.execute("TRUNCATE TABLE markers;")
+#verify if the table is empty
+cur.execute("SELECT * FROM markers;")
+print(f"Number of rows in the table: {cur.rowcount}")
 
 # Insert the marker records using execute_values for efficiency.
 try:

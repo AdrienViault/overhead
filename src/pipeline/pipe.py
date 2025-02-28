@@ -209,14 +209,18 @@ def get_pixel_depth(depth, box):
 
     return corrected_depth_value
 
-def add_point_to_depth_image(cropped_depth_image):
-    #get the center of the image
-    center = (cropped_depth_image.shape[1] // 2, cropped_depth_image.shape[0] // 2)
-    #add a point at the center of the image
-    cv2.circle(cropped_depth_image, center, 5, (255, 255, 255), -1)
-    #write the value of the point
-    cv2.putText(cropped_depth_image, str(cropped_depth_image[center[1], center[0]]), center, cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
-    return cropped_depth_image, cropped_depth_image[center[1], center[0]]
+# def add_point_to_depth_image(cropped_depth_image):
+#     #get the center of the image
+#     center = (cropped_depth_image.shape[1] // 2, cropped_depth_image.shape[0] // 2)
+#     #add a point at the center of the image
+#     cv2.circle(cropped_depth_image, center, 5, (255, 255, 255), -1)
+#     #write the value of the point
+#     cv2.putText(cropped_depth_image, str(cropped_depth_image[center[1], center[0]]), center, cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+#     return cropped_depth_image, cropped_depth_image[center[1], center[0]]
+
+
+
+
 
 def init_image_metadata(        
         image_path,
@@ -458,10 +462,13 @@ def process_image(
                 proj_img_path,
                 device
                 )
+            # Normalize the depth map for visualization and save it as an image (8-bit conversion)
+            depth_norm = (depth_map - depth_map.min()) / (depth_map.max() - depth_map.min())
+            depth_image = Image.fromarray((depth_norm * 255).astype(np.uint8))
             # save depth map in output folder
             depth_map_file_name = f"{path_obj.stem}_{side}_depth_map.jpg"
             depth_map_path = os.path.join(processed_dir, depth_map_file_name)
-            cv2.imwrite(depth_map_path, depth_map)
+            depth_image.save(depth_map_path)
 
             for idx, box, score, detected_label in zip(
                 range(len(boxes)),
@@ -477,10 +484,7 @@ def process_image(
                 cropped_img_path = os.path.join(processed_dir, cropped_img_file_name)
                 cropped_depth_map_path = os.path.join(processed_dir, cropped_depth_map_name)
                 cv2.imwrite(cropped_img_path, cropped_img)
-
-                #add at the center of depth cropped image a point and write the value of the point
-                cropped_img, depth_value = add_point_to_depth_image(cropped_depth_img)
-                cv2.imwrite(cropped_depth_map_path, cropped_img)
+                cv2.imwrite(cropped_depth_map_path, cropped_depth_img)
 
                 object_relative_angle = calculate_angle(image_path, box)
                 object_absolute_angle = source_angle + relative_leftside_angle + object_relative_angle
