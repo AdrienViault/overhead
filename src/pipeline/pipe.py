@@ -14,6 +14,7 @@ import torch
 from transformers import OwlViTProcessor, OwlViTForObjectDetection
 from PIL import Image
 import json
+import numpy as np
 
 
 def decompose_image_path(image_path):
@@ -585,10 +586,10 @@ def main():
 
     print(f"Found {len(image_files)} image(s) in the dataset.")
 
-    # In test mode, sample 1000 random images from the tree.
+    # In test mode, sample 100 random images from the tree.
     if args.test:
-        image_files = random.sample(image_files, min(15000, len(image_files)))
-        print("Test mode enabled: processing 1000 random images.")
+        image_files = random.sample(image_files, min(100, len(image_files)))
+        print("Test mode enabled: processing 100 random images.")
 
     # Process each image in the list, timing each iteration.
     for image_path in image_files:
