@@ -560,7 +560,6 @@ def main():
     parser.add_argument(
         "--test",
         action="store_true",
-        default=True,
         help="Run in test mode: process only 10 random images from the dataset."
     )
     args = parser.parse_args()
