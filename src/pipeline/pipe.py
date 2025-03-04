@@ -370,7 +370,6 @@ def save_metadata(processed_dir, image_source_name, metadata, side):
         # Optionally, reprint the metadata structure for further debugging.
         raise  
 
-
 def process_image(
         image_path, 
         output_base, 
@@ -413,41 +412,41 @@ def process_image(
     os.makedirs(processed_dir, exist_ok=True)
     image_dir, image_name, image_ext = decompose_image_path(image_path)
    
-   
+    # Check if a left projection image already exists.
+    left_proj_img_file_name = f"{image_name}_perspective_left.jpg"
+    left_img_path = os.path.join(processed_dir, left_proj_img_file_name)
+    if os.path.exists(left_img_path):
+        print(f"Projection already exists for {image_path}. Skipping processing.")
+        return
+
     source_gps_metadata = get_gps_info(image_path)
-    #get image angle from gps data
-    #verify that source_gps_metadata has a GPSImgDirection key
+    # Get image angle from GPS data; default to 0 if not present.
     if 'GPSImgDirection' not in source_gps_metadata:
         source_angle = 0
-        print(f"Warning: No GPSImgDirection found in {image_path}")
-        print(f"Setting source angle to {source_angle}")
+        print(f"Warning: No GPSImgDirection found in {image_path}. Setting source angle to {source_angle}")
     else:
         source_angle = source_gps_metadata['GPSImgDirection']
-
-
 
     horizontal_fov_deg = 90
     # --- Projection step ---
     projections, yaw_angles = projection(
-        equi_img_path = image_path,
-        out_width = 1080,
-        horizontal_fov_deg = horizontal_fov_deg,
-        vertical_fov_deg = 140,
-        keep_top_crop_factor = 2 / 3,
+        equi_img_path=image_path,
+        out_width=1080,
+        horizontal_fov_deg=horizontal_fov_deg,
+        vertical_fov_deg=140,
+        keep_top_crop_factor=2 / 3,
     )
     if projections is None:
         print(f"Projection failed for {image_path}")
         return
     left_img, right_img = projections
 
-    left_proj_img_file_name = f"{image_name}_perspective_left.jpg"
-    right_proj_img_file_name= f"{image_name}_perspective_right.jpg"
-    left_img_path = os.path.join(processed_dir,left_proj_img_file_name)
-    right_img_path = os.path.join(processed_dir,right_proj_img_file_name)
+    right_proj_img_file_name = f"{image_name}_perspective_right.jpg"
+    right_img_path = os.path.join(processed_dir, right_proj_img_file_name)
     cv2.imwrite(left_img_path, left_img)
     cv2.imwrite(right_img_path, right_img)
     
-    print(f"Saved perspective images for {image_path} side as {left_proj_img_file_name} and {right_proj_img_file_name} in {processed_dir}")
+    print(f"Saved perspective images for {image_path} as {left_proj_img_file_name} and {right_proj_img_file_name} in {processed_dir}")
 
     for side, proj_img_name, proj_img_path, yaw in zip(
         ['left', 'right'],
@@ -461,7 +460,7 @@ def process_image(
             side
             )
 
-        # get image leftstide relative angle
+        # Get image leftside relative angle.
         relative_leftside_angle = get_leftside_image_relative_angle(yaw, horizontal_fov_deg)
 
         # --- Object detection and processing ---
@@ -470,8 +469,6 @@ def process_image(
             detection_model,
             detection_processor
             )
-        
-
         
         if len(scores) > 0:
             depth_map = estimate_depth(
@@ -483,7 +480,6 @@ def process_image(
             # Normalize the depth map for visualization and save it as an image (8-bit conversion)
             depth_norm = (depth_map - depth_map.min()) / (depth_map.max() - depth_map.min())
             depth_image = Image.fromarray((depth_norm * 255).astype(np.uint8))
-            # save depth map in output folder
             depth_map_file_name = f"{path_obj.stem}_{side}_depth_map.jpg"
             depth_map_path = os.path.join(processed_dir, depth_map_file_name)
             depth_image.save(depth_map_path)
@@ -494,7 +490,7 @@ def process_image(
                 scores,
                 detected_labels
             ):
-                # remove "a photo of a" or "a photo of an" from beginning of detected_label
+                # Remove "a photo of a" or "a photo of an" from beginning of detected_label.
                 if detected_label.startswith("a photo of an "):
                     detected_label = detected_label[13:]
                 elif detected_label.startswith("a photo of a "):
@@ -502,10 +498,9 @@ def process_image(
 
                 detected_label_nospace = detected_label.replace(" ", "_")
 
-                # Crop the object from the image
+                # Crop the object from the image.
                 cropped_img = crop_object_image(proj_img_path, box)
                 cropped_depth_img = crop_object_image(depth_map_path, box)
-                # save cropped image
                 cropped_img_file_name = f"{path_obj.stem}_{side}_obj{idx}_{detected_label_nospace}_img.jpg"
                 cropped_depth_map_name = f"{path_obj.stem}_{side}_obj{idx}_{detected_label_nospace}_depth_map.jpg"
                 cropped_img_path = os.path.join(processed_dir, cropped_img_file_name)
@@ -518,9 +513,8 @@ def process_image(
                 
                 depth_value = get_pixel_depth(depth_map, box)
 
-                # Example: cropped_img.save(obj_path)
+                # Update metadata with the detected object info.
                 update_metadata(
-                    #fill with object metadata
                     side_image_relative_metadata,
                     proj_img_path,
                     cropped_img_path,
